@@ -46,7 +46,7 @@ def get_db():
     finally:
         db.close()
 
-#test connections
+#test db connections
 def test_connect():
     try:
         with engine.connect() as connection:

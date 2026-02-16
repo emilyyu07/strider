@@ -1,27 +1,54 @@
 #routing service with pgRouting
 '''
-- take raw GPS coordinates to calculate best path between them using pgRouting
-- supports semantic routing with custom cost functions based on edge attributes (e.g. prefer lit streets, avoid highways)
+- finds nearest nodes to coordinates
+- runs pgRouting algorithms with dynamic cost functions based on user preferences
+- converts routes to GeoJSON for API response
 '''
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from typing import List, Tuple, Optional
+from typing import List, Dict, Optional
+from shapely import wkb
+from shapely.geometry import mapping, LineString
+from shapely.ops import linemerge
 import json
 
 def find_nearest_node(db: Session, lon: float, lat: float) -> Optional[int]:
-    #Find nearest node in routing graph to given coordinates"""
+    #Find nearest node in routing graph to given coordinates
+    """
+    Find nearest node to given coordinate using PostGIS spatial functions
+    Args:
+        db: Database session
+        lon: Longitude of the point
+        lat: Latitude of the point
+    Personal Note: <-> is distance to operator in PostGIS
+    """
     query = text("""
-        SELECT id, ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) AS dist
+        SELECT id
         FROM routing.nodes
-        ORDER BY dist
+        ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
         LIMIT 1
     """)
+
     result = db.execute(query, {"lon": lon, "lat": lat}).scalar()
     return result
 
-def calculate_route(db: Session, start_node: int, end_node: int, cost_multipliers:dict=None) -> List[dict]:
-    #Calculate route with optional cost multipliers for semantic routing
+def calculate_route(db: Session, start_node: int, end_node: int, cost_multipliers: Optional[Dict[str, float]] = None) -> List[dict]:
+    #Calculate route with optional cost multipliers for semantic routing + Dijkstra's algorithm
+    """
+    Docstring for calculate_route
+    
+    :param db: Description
+    :type db: Session
+    :param start_node: starting node ID
+    :type start_node: int
+    :param end_node: ending node ID
+    :type end_node: int
+    :param cost_multipliers: optional dict
+    :type cost_multipliers: Optional[Dict[str, float]]
+    :return: list of route segments with geometries/properties
+    :rtype: List[dict]
+    """
     
 
     #cost calculation SQL 
@@ -30,8 +57,9 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
     else:
         cost_calc="length" #default cost is just length
     
+
     #pgRouting query - find shortest path using Dijkstra's algorithm
-    query = text("""
+    query = text(f"""
         SELECT 
             route.seq,
             route.node,
@@ -50,9 +78,10 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
             directed := false
         ) AS route
         LEFT JOIN routing.edges e ON route.edge = e.id
-        WHERE route.route != -1
+        WHERE route.edge != -1
         ORDER BY route.seq
     """)
+
     result = db.execute(query, 
         {"start_node": start_node, "end_node": end_node}).fetchall()
 
@@ -74,21 +103,34 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
         segments.append(segment)
     return segments
 
-def build_cost_calculation(multipliers: dict) -> str:
+def build_cost_calculation(multipliers: Dict[str,float]) -> str:
     '''
-    Build SQL CASE stmt for cost calc
+    Build SQL CASE stmt for dynamic cosr calculation
+    -> convert user preferences into SQL expression for pgRouting cost function
 
     Args:
-    multiplers : dict (i.e. {'highway':50.0, 'residential':10.0,'scenic':5.0})
+    multiplers : dict with raod types and special attributes
+        Road types: 'motorway', 'primary', 'residential', 'path', etc.
+        Special attributes: 'unlit' (for lighting), 'scenic' (for scenic score)
+
 
     returns SQL expression for cost calculation based on edge attributes and multipliers
     '''
+    # road type multipliers (dynamically loaded)
+    type_conditions=[]
 
-    conditions=[]
-    #road type multipliers
-    for road_type in ['highway', 'residential', 'path', 'primary']:
-        if road_type in multipliers and multipliers[road_type] != 1.0:
-            conditions.append(f"WHEN type='{road_type}' THEN length * {multipliers[road_type]}")
+    #define special attribute factors (differentiate from road types)
+    special_attributes = {'scenic','unlit','lit'}
+    
+    for key,value in multipliers.items():
+        #if not special attribute, treat as road type multiplier
+        if key not in special_attributes and value != 1.0:
+            type_conditions.append(f"WHEN type=''{key}'' THEN {value}")
+
+    if type_conditions:
+        road_type_factor=f"CASE {' '.join(type_conditions)} ELSE 1.0 END"
+    else:
+        road_type_factor="1.0"
 
     #lighting multiplier
     if 'unlit' in multipliers and multipliers['unlit']!=1.0:
@@ -98,21 +140,18 @@ def build_cost_calculation(multipliers: dict) -> str:
 
     #scenic multiplier (lower cost for higher scenic values)
     if 'scenic' in multipliers and multipliers['scenic'] != 1.0:
-        scenic_factor=f"(CASE WHEN scenic_score > 6 THEN l{multipliers['scenic']} ELSE 1.0 END)"
+        scenic_factor=f"(CASE WHEN scenic_score > 7 THEN {multipliers['scenic']} ELSE 1.0 END)"
     else:
         scenic_factor="1.0"
 
     #combine all factors
-    conditions=f"length * {road_type} * {lit_factor} * {scenic_factor}"
+    conditions=f"length * {road_type_factor} * {lit_factor} * {scenic_factor}"
     return conditions
 
 
 def route_to_geojson(segments: List[dict]) -> dict:
     #Convert route segments to GeoJSON format for API response
-    
-    from shapely import wkb
-    from shapely.geometry import mapping, LineString
-    from shapely.ops import linemerge
+    # note -> GeoJSON is format for encoding geographic JSON data (for MapLibre)
 
     if not segments:
         return {"type": "FeatureCollection", "features": []}
@@ -121,8 +160,8 @@ def route_to_geojson(segments: List[dict]) -> dict:
     geometries=[]
     for segment in segments:
         if segment['geom']:
-            #convert WKB to shapely geometry
-            geom=wkb.loads(bytes(segment['geom']))
+            #convert WKB to shapely geometry (hex string to binary bytes)
+            geom=wkb.loads(bytes.fromhex(segment['geom']))
             geometries.append(geom)
     
     #merge into single Linestring
@@ -132,8 +171,8 @@ def route_to_geojson(segments: List[dict]) -> dict:
     total_distance=sum(seg['length'] for seg in segments if seg['length'])
 
     #count attributes
-    lit_count=sum(1 for seg in segments if seg.get['lit'])  
-    scenic_count=sum(1 for seg in segments if seg.get('scenic_score',0) > 6)
+    lit_count=sum(1 for seg in segments if seg.get('lit', False))  
+    scenic_count=sum(1 for seg in segments if seg.get('scenic_score',0) > 7)
 
     #build GeoJSON response
     feature={
@@ -163,3 +202,4 @@ def route_to_geojson(segments: List[dict]) -> dict:
         "type": "FeatureCollection",
         "features": [feature]
     }
+
