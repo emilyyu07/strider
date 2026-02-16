@@ -3,7 +3,8 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
-from sqlalchemy import Session, text
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from database import get_db, test_connect
 from services.routing import (
     find_nearest_node, 
