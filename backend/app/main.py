@@ -1,3 +1,4 @@
+import traceback
 from fastapi import Depends, FastAPI, types, HTTPException
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,10 +52,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
-# PYDANTIC MODELS
-# ============================================================================
-
+#pydantic models for request/response validation
 class RouteRequest(BaseModel):
     """Request model for route planning endpoint"""
     prompt: str
@@ -81,10 +79,7 @@ class RouteResponse(BaseModel):
     type: str = "FeatureCollection"
     features: List[Dict[str, Any]]
 
-# ============================================================================
-# ENDPOINTS
-# ============================================================================
-
+#endpoints
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -112,12 +107,16 @@ async def health_check(db: Session = Depends(get_db)):
         edges = db.execute(text("SELECT COUNT(*) FROM routing.edges")).scalar()
 
         # get road type distribution
-        road_types = db.execute(text("""
+        types_result = db.execute(text("""
             SELECT type, COUNT(*) as count
             FROM routing.edges
             GROUP BY type
             ORDER BY count DESC
         """)).fetchall()
+
+        road_types ={}
+        for row in types_result:
+            road_types[row.type] = row.count
 
         return {
             "status": "healthy",
@@ -125,7 +124,7 @@ async def health_check(db: Session = Depends(get_db)):
             "statistics":{
                 "nodes": nodes,
                 "edges": edges,
-                "road_types":{row.type: row.count for row in types} 
+                "road_types":road_types
             },
             "features": {
                 "postgis": "active",
@@ -134,7 +133,13 @@ async def health_check(db: Session = Depends(get_db)):
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
+        return {
+            "status": "error",
+            "database": "failed",
+            "error":str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
         
                                                               
 
@@ -179,7 +184,7 @@ async def plan_route(request: RouteRequest, db: Session = Depends(get_db)) -> Ro
         '''
 
         # add cost_multipliers LATER
-        segments = calculate_route(db, start_node, end_node, cost_multipliers=None)
+        segments = calculate_route(db, start_node=start_node, end_node=end_node, cost_multipliers=None)
         if not segments:
             raise HTTPException(status_code=404, detail="No route found between the specified locations")
         
@@ -202,7 +207,7 @@ async def plan_route(request: RouteRequest, db: Session = Depends(get_db)) -> Ro
 @app.get("/test-coordinates")
 async def test_coordinates():
     """
-    Return sample coordinates for testing
+    Return sample coordinates for testing (for frontend dev and API testing)
     """
 
     return {
@@ -232,7 +237,7 @@ async def test_coordinates():
                 "end": {"lon": -80.22, "lat": 43.52}
             },
             {
-                "name": "E to W",
+                "name": "East to West",
                 "description": "Horizontal path",
                 "start": {"lon": -80.248, "lat": 43.544},
                 "end": {"lon": -80.22, "lat": 43.52}
@@ -243,12 +248,8 @@ async def test_coordinates():
 
 
 
-
-# ============================================================================
-# RUN INSTRUCTIONS
-# ============================================================================
 """
-To run this app:
+To run:
 
 1. Install dependencies:
    pip install fastapi uvicorn pydantic
