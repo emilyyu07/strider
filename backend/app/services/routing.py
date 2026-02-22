@@ -1,5 +1,5 @@
-#routing service with pgRouting
 '''
+routing service
 - finds nearest nodes to coordinates
 - runs pgRouting algorithms with dynamic cost functions based on user preferences
 - converts routes to GeoJSON for API response
