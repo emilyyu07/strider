@@ -4,9 +4,6 @@ LLM service for semantic routing
 - uses LLama-3 via Ollama and the Instructor Library
 """
 
-from email import message
-from multiprocessing import context
-
 import instructor, os
 from openai import OpenAI
 
@@ -142,7 +139,7 @@ class LLMService:
         for key,value in context.items():
             message+=f"\n- {key}: {value}"
 
-        return message
+       return message
        
     def _get_fallback_preferences(self, prompt:str) -> RoutingPreferences:
         """
@@ -179,8 +176,10 @@ class LLMService:
             reasoning_parts.append("Preferring trails and sidewalks")
           
         
-        reasoning="LLM Unavailable. Using fallback keyword matching to infer preferences: " 
-        + "; ".join(reasoning_parts) if reasoning_parts else "LLM Unavailable. Using default routing."
+        if reasoning_parts:
+            reasoning = "LLM Unavailable. Using fallback keyword matching to infer preferences: " + "; ".join(reasoning_parts)
+        else:
+            reasoning = "LLM Unavailable. Using default routing."
 
         return RoutingPreferences(
             preferences=prefs,
@@ -188,15 +187,15 @@ class LLMService:
             time_of_day=None,
             distance_preference=None
         )
-    
-    def get_llm_service() -> 'LLMService':
-        """
-        Get/create global llm service instance (singleton pattern, ensurs only one llm client is created for entire app)
 
-        Returns:
-        - LLMService instance
-        """
-        global _llm_service
-        if _llm_service is None:
-            _llm_service = LLMService()
-        return _llm_service
+def get_llm_service() -> 'LLMService':
+    """
+    Get/create global llm service instance (singleton pattern, ensurs only one llm client is created for entire app)
+
+    Returns:
+    - LLMService instance
+    """
+    global _llm_service
+    if _llm_service is None:
+        _llm_service = LLMService()
+    return _llm_service

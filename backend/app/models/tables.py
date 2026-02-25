@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, Float, String, Boolean, ForeignKey, TIME
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from datetime import datetime
-from ..database import Base
+from database import Base
 
 class Node(Base):
     #represent an intersection/connection point in routing graph

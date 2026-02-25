@@ -12,6 +12,7 @@ from services.routing import (
     calculate_route, 
     route_to_geojson
     )
+from services.llm import get_llm_service
 
 # TO RUN: fastapi dev main.py
 # real time routing logic
@@ -177,14 +178,19 @@ async def plan_route(request: RouteRequest, db: Session = Depends(get_db)) -> Ro
                 end_node=1
 
 
-        #Calculate route
-        '''
-        For now: use default costs, restrict to distance only
-        Later: user LLM to interpret prompt and egnerate cost multipliers for different road types/attributes
-        '''
+        #Analyze prompt with LLM to get semantic preferences
+        llm_service = get_llm_service()
+        try:
+            preferences = llm_service.analyze_prompt(request.prompt)
+            cost_multipliers = preferences.preferences
+            print(f"LLM Analysis - Reasoning: {preferences.reasoning}")
+            print(f"Generated cost multipliers: {cost_multipliers}")
+        except Exception as e:
+            print(f"LLM analysis failed, using default routing: {e}")
+            cost_multipliers = None
 
-        # add cost_multipliers LATER
-        segments = calculate_route(db, start_node=start_node, end_node=end_node, cost_multipliers=None)
+        #Calculate route with semantic cost multipliers
+        segments = calculate_route(db, start_node=start_node, end_node=end_node, cost_multipliers=cost_multipliers)
         if not segments:
             raise HTTPException(status_code=404, detail="No route found between the specified locations")
         
@@ -196,6 +202,10 @@ async def plan_route(request: RouteRequest, db: Session = Depends(get_db)) -> Ro
             geojson['features'][0]['properties']['prompt'] = request.prompt
             geojson['features'][0]['properties']['start_node'] = start_node
             geojson['features'][0]['properties']['end_node'] = end_node
+            # Add LLM analysis metadata if available
+            if cost_multipliers:
+                geojson['features'][0]['properties']['llm_reasoning'] = preferences.reasoning
+                geojson['features'][0]['properties']['cost_multipliers'] = cost_multipliers
 
         return RouteResponse(**geojson)
 

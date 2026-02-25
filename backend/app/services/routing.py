@@ -14,14 +14,13 @@ from shapely.ops import linemerge
 import json
 
 def find_nearest_node(db: Session, lon: float, lat: float) -> Optional[int]:
-    #Find nearest node in routing graph to given coordinates
     """
     Find nearest node to given coordinate using PostGIS spatial functions
     Args:
         db: Database session
         lon: Longitude of the point
         lat: Latitude of the point
-    Personal Note: <-> is distance to operator in PostGIS
+    Note: <-> is distance operator in PostGIS
     """
     query = text("""
         SELECT id
@@ -34,31 +33,28 @@ def find_nearest_node(db: Session, lon: float, lat: float) -> Optional[int]:
     return result
 
 def calculate_route(db: Session, start_node: int, end_node: int, cost_multipliers: Optional[Dict[str, float]] = None) -> List[dict]:
-    #Calculate route with optional cost multipliers for semantic routing + Dijkstra's algorithm
     """
-    Docstring for calculate_route
+    Calculate route with optional cost multipliers for semantic routing using Dijkstra's algorithm
     
-    :param db: Description
-    :type db: Session
-    :param start_node: starting node ID
-    :type start_node: int
-    :param end_node: ending node ID
-    :type end_node: int
-    :param cost_multipliers: optional dict
-    :type cost_multipliers: Optional[Dict[str, float]]
-    :return: list of route segments with geometries/properties
-    :rtype: List[dict]
+    Args:
+        db: Database session
+        start_node: Starting node ID
+        end_node: Ending node ID
+        cost_multipliers: Optional dict with road types and special attributes
+    
+    Returns:
+        List of route segments with geometries and properties
     """
     
 
-    #cost calculation SQL 
+    # Cost calculation SQL 
     if cost_multipliers:
         cost_calc=build_cost_calculation(cost_multipliers)
     else:
-        cost_calc="length" #default cost is just length
+        cost_calc = "length"  # default cost is just length
     
 
-    #pgRouting query - find shortest path using Dijkstra's algorithm
+    # pgRouting query - find shortest path using Dijkstra's algorithm
     query = text(f"""
         SELECT 
             route.seq,
@@ -85,7 +81,7 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
     result = db.execute(query, 
         {"start_node": start_node, "end_node": end_node}).fetchall()
 
-    #convert to list of dicts for response
+    # Convert to list of dicts for response
     segments=[]
     for row in result:
         segment={
@@ -93,7 +89,7 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
             "node": row.node,
             "edge": row.edge,
             "cost": row.cost,
-            "geom": row.geom, #WKB format -> can convert to GeoJSON in res
+            "geom": row.geom,  # WKB format -> can convert to GeoJSON in response
             "type": row.type,
             "lit": row.lit,
             "scenic_score": row.scenic_score,
@@ -105,11 +101,11 @@ def calculate_route(db: Session, start_node: int, end_node: int, cost_multiplier
 
 def build_cost_calculation(multipliers: Dict[str,float]) -> str:
     '''
-    Build SQL CASE stmt for dynamic cosr calculation
+    Build SQL CASE stmt for dynamic cost calculation
     -> convert user preferences into SQL expression for pgRouting cost function
 
     Args:
-    multiplers : dict with raod types and special attributes
+    multipliers : dict with road types and special attributes
         Road types: 'motorway', 'primary', 'residential', 'path', etc.
         Special attributes: 'unlit' (for lighting), 'scenic' (for scenic score)
 
@@ -202,4 +198,3 @@ def route_to_geojson(segments: List[dict]) -> dict:
         "type": "FeatureCollection",
         "features": [feature]
     }
-
