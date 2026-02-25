@@ -6,13 +6,13 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from database import get_db, test_connect
-from services.routing import (
+from .database import get_db, test_connect
+from .services.routing import (
     find_nearest_node, 
     calculate_route, 
     route_to_geojson
     )
-from services.llm import get_llm_service
+from .services.llm import get_llm_service
 
 # TO RUN: fastapi dev main.py
 # real time routing logic

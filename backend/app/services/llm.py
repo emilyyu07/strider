@@ -8,7 +8,7 @@ import instructor, os
 from openai import OpenAI
 
 
-from models.llm import RoutingPreferences
+from ..models.llm import RoutingPreferences
 
 #singleton LLM service instance
 _llm_service=None
@@ -21,8 +21,8 @@ class LLMService:
 
     def __init__(
             self,
-            base_url: str = "http://localhost:11434",
-            model: str="llama3",
+            base_url: str = "http://localhost:11434/v1",
+            model: str="qwen2.5:1.5b",
             timeout: int=30  
     ):
         """
@@ -44,7 +44,7 @@ class LLMService:
         )
 
         #wrap with instructor for structured outputs
-        self.client = instructor.from_openai(base_client, mode=instructor.Mode.JSON)
+        self.client = instructor.patch(base_client, mode=instructor.Mode.JSON)
 
     def analyze_prompt(
             self,
