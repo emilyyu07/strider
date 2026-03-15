@@ -1,170 +1,116 @@
-/**
-* MapLibre GL map component
-*/
+import { useEffect, useRef, useState } from 'react'
+import maplibregl from 'maplibre-gl'
 
-import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
-import type { Coordinates, GeoJSONResponse } from '../types';
+import type { Coordinates, RouteResponse } from '../types'
 
 interface MapProps {
-onMapClick: (coords: Coordinates) => void;
-startPoint: Coordinates | null;
-endPoint: Coordinates | null;
-route: GeoJSONResponse | null;
+  currentLocation: Coordinates | null
+  route: RouteResponse | null
 }
 
-export default function Map({ onMapClick, startPoint, endPoint, route }: MapProps) {
-const mapContainer = useRef<HTMLDivElement>(null);
-const map = useRef<maplibregl.Map | null>(null);
-const [mapLoaded, setMapLoaded] = useState(false);
+export default function Map({ currentLocation, route }: MapProps) {
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const map = useRef<maplibregl.Map | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const routeStartMarker = useRef<maplibregl.Marker | null>(null)
+  const currentLocationMarker = useRef<maplibregl.Marker | null>(null)
 
-// Markers
-const startMarker = useRef<maplibregl.Marker | null>(null);
-const endMarker = useRef<maplibregl.Marker | null>(null);
+  useEffect(() => {
+    if (!mapContainer.current || map.current) {
+      return
+    }
+    map.current = new maplibregl.Map({
+      container: mapContainer.current,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: [
+              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            ],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      },
+      center: [-80.2482, 43.5448],
+      zoom: 13,
+    })
+    map.current.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.current.on('load', () => setMapLoaded(true))
 
-// Initialize map
-useEffect(() => {
-if (!mapContainer.current) return;
-if (map.current) return; // Initialize only once
+    return () => {
+      map.current?.remove()
+      map.current = null
+    }
+  }, [])
 
-// Create map
-map.current = new maplibregl.Map({
-container: mapContainer.current,
-style: {
-version: 8,
-sources: {
-'osm': {
-type: 'raster',
-tiles: [
-'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-],
-tileSize: 256,
-attribution: '© OpenStreetMap contributors',
-},
-},
-layers: [
-{
-id: 'osm',
-type: 'raster',
-source: 'osm',
-minzoom: 0,
-maxzoom: 19,
-},
-],
-},
-center: [-80.248, 43.544], // Guelph, ON
-zoom: 13,
-});
+  useEffect(() => {
+    if (!map.current || !mapLoaded) {
+      return
+    }
 
-// Add navigation controls
-map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    const lineId = 'route-line'
+    const sourceId = 'route-source'
+    if (map.current.getLayer(lineId)) {
+      map.current.removeLayer(lineId)
+    }
+    if (map.current.getSource(sourceId)) {
+      map.current.removeSource(sourceId)
+    }
+    routeStartMarker.current?.remove()
+    routeStartMarker.current = null
+    currentLocationMarker.current?.remove()
+    currentLocationMarker.current = null
 
-// Add scale
-map.current.addControl(new maplibregl.ScaleControl(), 'bottom-left');
+    if (route && route.route.length > 0) {
+      const lineCoordinates = route.route.map(([lat, lng]) => [lng, lat])
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: lineCoordinates },
+          properties: {},
+        },
+      })
+      map.current.addLayer({
+        id: lineId,
+        type: 'line',
+        source: sourceId,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#2563eb', 'line-width': 4 },
+      })
 
-// Handle map click
-map.current.on('click', (e) => {
-onMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
-});
+      const [startLat, startLng] = route.route[0]
+      routeStartMarker.current = new maplibregl.Marker({ color: '#dc2626' })
+        .setLngLat([startLng, startLat])
+        .setPopup(new maplibregl.Popup().setText('Route start'))
+        .addTo(map.current)
 
-// Map loaded
-map.current.on('load', () => {
-setMapLoaded(true);
-});
+      const bounds = lineCoordinates.reduce(
+        (nextBounds, point) => nextBounds.extend(point as [number, number]),
+        new maplibregl.LngLatBounds(
+          lineCoordinates[0] as [number, number],
+          lineCoordinates[0] as [number, number],
+        ),
+      )
+      map.current.fitBounds(bounds, { padding: 50 })
+    }
 
-// Cleanup
-return () => {
-map.current?.remove();
-map.current = null;
-};
-}, [onMapClick]);
+    if (currentLocation) {
+      currentLocationMarker.current = new maplibregl.Marker({ color: '#059669' })
+        .setLngLat([currentLocation.lng, currentLocation.lat])
+        .setPopup(new maplibregl.Popup().setText('Current location'))
+        .addTo(map.current)
+      if (!route) {
+        map.current.flyTo({ center: [currentLocation.lng, currentLocation.lat], zoom: 14 })
+      }
+    }
+  }, [currentLocation, route, mapLoaded])
 
-// Update start marker
-useEffect(() => {
-if (!map.current || !mapLoaded) return;
-
-// Remove old marker
-if (startMarker.current) {
-startMarker.current.remove();
-}
-
-// Add new marker
-if (startPoint) {
-startMarker.current = new maplibregl.Marker({ color: '#ef4444' }) // Red
-.setLngLat([startPoint.lng, startPoint.lat])
-.setPopup(new maplibregl.Popup().setHTML('<strong>Start</strong>'))
-.addTo(map.current);
-}
-}, [startPoint, mapLoaded]);
-
-// Update end marker
-useEffect(() => {
-if (!map.current || !mapLoaded) return;
-
-// Remove old marker
-if (endMarker.current) {
-endMarker.current.remove();
-}
-
-// Add new marker
-if (endPoint) {
-endMarker.current = new maplibregl.Marker({ color: '#3b82f6' }) // Blue
-.setLngLat([endPoint.lng, endPoint.lat])
-.setPopup(new maplibregl.Popup().setHTML('<strong>End</strong>'))
-.addTo(map.current);
-}
-}, [endPoint, mapLoaded]);
-
-// Update route
-useEffect(() => {
-if (!map.current || !mapLoaded) return;
-
-// Remove old route layer
-if (map.current.getLayer('route')) {
-map.current.removeLayer('route');
-}
-if (map.current.getSource('route')) {
-map.current.removeSource('route');
-}
-
-// Add new route
-if (route && route.features.length > 0) {
-map.current.addSource('route', {
-type: 'geojson',
-data: route as any,
-});
-
-map.current.addLayer({
-id: 'route',
-type: 'line',
-source: 'route',
-layout: {
-'line-join': 'round',
-'line-cap': 'round',
-},
-paint: {
-'line-color': '#3b82f6',
-'line-width': 4,
-'line-opacity': 0.8,
-},
-});
-
-// Fit map to route bounds
-const coordinates = route.features[0].geometry.coordinates as number[][];
-const bounds = coordinates.reduce(
-(bounds, coord) => bounds.extend(coord as [number, number]),
-new maplibregl.LngLatBounds(coordinates[0] as [number, number], coordinates[0] as [number, number])
-);
-
-map.current.fitBounds(bounds, { padding: 50 });
-}
-}, [route, mapLoaded]);
-
-return (
-<div className="relative w-full h-full">
-<div ref={mapContainer} className="absolute inset-0" />
-</div>
-);
+  return <div ref={mapContainer} className="map-container" />
 }

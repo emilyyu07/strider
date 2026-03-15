@@ -1,14 +1,13 @@
-#schema for routing graph tables
-from sqlalchemy import Column, Integer, Float, String, Boolean, ForeignKey, TIMESTAMP
-from sqlalchemy.orm import relationship
-from geoalchemy2 import Geometry
 from datetime import datetime
-from database import Base
+
+from geoalchemy2 import Geometry
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, TIMESTAMP
+from sqlalchemy.orm import relationship
+from ..database import Base
 
 class Node(Base):
-    #represent an intersection/connection point in routing graph
-    __tablename__ = "nodes" 
-    __table_args__ = {'schema': 'routing'}  
+    __tablename__ = "nodes"
+    __table_args__ = {"schema": "routing"}
 
     id = Column(Integer, primary_key=True)
     geom = Column(Geometry('POINT', srid=4326), nullable=False)
@@ -19,16 +18,13 @@ class Node(Base):
         return f"<Node(id={self.id},osm_id={self.osm_id})>"
     
 class Edge(Base):
-    #represent a road segment between two nodes in routing graph
-    __tablename__="edges"
-    __table_args__ = {"schema":"routing"}
+    __tablename__ = "edges"
+    __table_args__ = {"schema": "routing"}
 
-    id = Column(Integer,primary_key=True)
-    source=Column(Integer,ForeignKey("routing.nodes.id"),nullable=False)
-    target=Column(Integer,ForeignKey("routing.nodes.id"),nullable=False)
-
-    # Geometry
-    geom = Column(Geometry('LINESTRING', srid=4326), nullable=False)
+    id = Column(Integer, primary_key=True)
+    source = Column(Integer, ForeignKey("routing.nodes.id"), nullable=False)
+    target = Column(Integer, ForeignKey("routing.nodes.id"), nullable=False)
+    geom = Column(Geometry("LINESTRING", srid=4326), nullable=False)
     length = Column(Float, nullable=False)
     
     # OSM attributes

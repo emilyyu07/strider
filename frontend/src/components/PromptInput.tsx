@@ -1,93 +1,58 @@
-/**
-* Prompt input component
-*/
-
-import { useState } from 'react';
+import { useState } from 'react'
 
 interface PromptInputProps {
-onSubmit: (prompt: string) => void;
-loading: boolean;
-disabled: boolean;
+  onSubmit: (prompt: string) => void
+  loading: boolean
+  disabled: boolean
 }
 
 const SAMPLE_PROMPTS = [
-'scenic run avoiding highways',
-'night run on well-lit streets',
-'quiet morning jog through neighborhoods',
-'fast route on main roads',
-];
+  '5km loop, quiet streets, some elevation',
+  'Easy 3km recovery run, shaded routes',
+  '8km steady run on calm roads',
+]
 
 export default function PromptInput({ onSubmit, loading, disabled }: PromptInputProps) {
-const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState('')
 
-const handleSubmit = (e: React.FormEvent) => {
-e.preventDefault();
-if (prompt.trim() && !disabled) {
-onSubmit(prompt.trim());
-}
-};
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (prompt.trim() && !disabled) {
+      onSubmit(prompt.trim())
+    }
+  }
 
-const handleSampleClick = (sample: string) => {
-setPrompt(sample);
-};
+  return (
+    <div>
+      <h3>Describe your run</h3>
+      <form onSubmit={handleSubmit}>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={3}
+          placeholder="e.g. 5km loop, quiet streets, some elevation"
+          disabled={loading}
+        />
+        <button type="submit" disabled={disabled || loading || !prompt.trim()}>
+          {loading ? 'Generating…' : 'Generate route'}
+        </button>
+      </form>
 
-return (
-<div className="space-y-4">
-<div>
-<label className="block text-sm font-medium text-gray-700 mb-2">
-Describe your ideal run
-</label>
-
-<form onSubmit={handleSubmit} className="space-y-3">
-<textarea
-value={prompt}
-onChange={(e) => setPrompt(e.target.value)}
-placeholder="e.g., scenic run avoiding highways"
-className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-rows={3}
-disabled={loading}
-/>
-
-<button
-type="submit"
-disabled={disabled || loading || !prompt.trim()}
-className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-disabled || loading || !prompt.trim()
-? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-: 'bg-primary text-white hover:bg-blue-600'
-}`}
->
-{loading ? (
-<span className="flex items-center justify-center">
-<svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-</svg>
-Planning Route...
-</span>
-) : (
-'Plan Route'
-)}
-</button>
-</form>
-</div>
-
-{/* Sample prompts */}
-<div>
-<p className="text-xs text-gray-500 mb-2">Sample prompts:</p>
-<div className="space-y-1">
-{SAMPLE_PROMPTS.map((sample, idx) => (
-<button
-key={idx}
-onClick={() => handleSampleClick(sample)}
-className="block w-full text-left text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-600 transition-colors"
-disabled={loading}
->
-"{sample}"
-</button>
-))}
-</div>
-</div>
-</div>
-);
+      <p>Samples:</p>
+      <ul>
+        {SAMPLE_PROMPTS.map((sample) => (
+          <li key={sample}>
+            <button
+              type="button"
+              onClick={() => setPrompt(sample)}
+              disabled={loading}
+              className="sample-button"
+            >
+              {sample}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }

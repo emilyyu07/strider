@@ -1,200 +1,51 @@
-'''
-routing service
-- finds nearest nodes to coordinates
-- runs pgRouting algorithms with dynamic cost functions based on user preferences
-- converts routes to GeoJSON for API response
-'''
+import math
+from typing import Sequence
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
-from shapely import wkb
-from shapely.geometry import mapping, LineString
-from shapely.ops import linemerge
-import json
-
-def find_nearest_node(db: Session, lon: float, lat: float) -> Optional[int]:
-    """
-    Find nearest node to given coordinate using PostGIS spatial functions
-    Args:
-        db: Database session
-        lon: Longitude of the point
-        lat: Latitude of the point
-    Note: <-> is distance operator in PostGIS
-    """
-    query = text("""
-        SELECT id
-        FROM routing.nodes
-        ORDER BY geom <-> ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
-        LIMIT 1
-    """)
-
-    result = db.execute(query, {"lon": lon, "lat": lat}).scalar()
-    return result
-
-def calculate_route(db: Session, start_node: int, end_node: int, cost_multipliers: Optional[Dict[str, float]] = None) -> List[dict]:
-    """
-    Calculate route with optional cost multipliers for semantic routing using Dijkstra's algorithm
-    
-    Args:
-        db: Database session
-        start_node: Starting node ID
-        end_node: Ending node ID
-        cost_multipliers: Optional dict with road types and special attributes
-    
-    Returns:
-        List of route segments with geometries and properties
-    """
-    
-
-    # Cost calculation SQL 
-    if cost_multipliers:
-        cost_calc=build_cost_calculation(cost_multipliers)
-    else:
-        cost_calc = "length"  # default cost is just length
-    
-
-    # pgRouting query - find shortest path using Dijkstra's algorithm
-    query = text(f"""
-        SELECT 
-            route.seq,
-            route.node,
-            route.edge,
-            route.cost,
-            e.geom,
-            e.type,
-            e.lit,
-            e.scenic_score,
-            e.name,
-            e.length
-        FROM pgr_dijkstra(
-            'SELECT id, source, target, {cost_calc} AS cost FROM routing.edges',
-            :start_node,
-            :end_node,
-            directed := false
-        ) AS route
-        LEFT JOIN routing.edges e ON route.edge = e.id
-        WHERE route.edge != -1
-        ORDER BY route.seq
-    """)
-
-    result = db.execute(query, 
-        {"start_node": start_node, "end_node": end_node}).fetchall()
-
-    # Convert to list of dicts for response
-    segments=[]
-    for row in result:
-        segment={
-            "seq": row.seq,
-            "node": row.node,
-            "edge": row.edge,
-            "cost": row.cost,
-            "geom": row.geom,  # WKB format -> can convert to GeoJSON in response
-            "type": row.type,
-            "lit": row.lit,
-            "scenic_score": row.scenic_score,
-            "name": row.name,
-            "length": row.length
-        }
-        segments.append(segment)
-    return segments
-
-def build_cost_calculation(multipliers: Dict[str,float]) -> str:
-    '''
-    Build SQL CASE stmt for dynamic cost calculation
-    -> convert user preferences into SQL expression for pgRouting cost function
-
-    Args:
-    multipliers : dict with road types and special attributes
-        Road types: 'motorway', 'primary', 'residential', 'path', etc.
-        Special attributes: 'unlit' (for lighting), 'scenic' (for scenic score)
+from ..models.contracts import LLMRouteParameters, RouteResponse
 
 
-    returns SQL expression for cost calculation based on edge attributes and multipliers
-    '''
-    # road type multipliers (dynamically loaded)
-    type_conditions=[]
+class RoutingService:
+    def generate_loop_route(
+        self,
+        *,
+        start_lat: float,
+        start_lng: float,
+        target_distance_m: int,
+        preferences: Sequence[str],
+    ) -> RouteResponse:
+        """
+        Generate a loop route anchored at the provided start coordinates.
 
-    #define special attribute factors (differentiate from road types)
-    special_attributes = {'scenic','unlit','lit'}
-    
-    for key,value in multipliers.items():
-        #if not special attribute, treat as road type multiplier
-        if key not in special_attributes and value != 1.0:
-            type_conditions.append(f"WHEN type=''{key}'' THEN {value}")
+        TODO: Replace this stub with real OSM + pgRouting query logic.
+        """
+        side_m = max(target_distance_m / 4, 80)
+        lat_delta = side_m / 111_000
+        cos_lat = math.cos(math.radians(start_lat)) or 1.0
+        lng_delta = side_m / (111_000 * abs(cos_lat))
 
-    if type_conditions:
-        road_type_factor=f"CASE {' '.join(type_conditions)} ELSE 1.0 END"
-    else:
-        road_type_factor="1.0"
+        route = [
+            (start_lat, start_lng),
+            (start_lat + lat_delta, start_lng),
+            (start_lat + lat_delta, start_lng + lng_delta),
+            (start_lat, start_lng + lng_delta),
+            (start_lat, start_lng),
+        ]
 
-    #lighting multiplier
-    if 'unlit' in multipliers and multipliers['unlit']!=1.0:
-        lit_factor=f"(CASE WHEN lit=false THEN {multipliers['unlit']} ELSE 1.0 END)"
-    else:
-        lit_factor="1.0"
+        distance_m = int(side_m * 4)
+        duration_estimate_s = int(distance_m / 2.6)
+        return RouteResponse(
+            route=route,
+            distance_m=distance_m,
+            duration_estimate_s=duration_estimate_s,
+            description="Stub loop route generated from current location.",
+            parameters=LLMRouteParameters(
+                distance_m=target_distance_m,
+                preferences=list(preferences),
+                start_lat=start_lat,
+                start_lng=start_lng,
+            ),
+        )
 
-    #scenic multiplier (lower cost for higher scenic values)
-    if 'scenic' in multipliers and multipliers['scenic'] != 1.0:
-        scenic_factor=f"(CASE WHEN scenic_score > 7 THEN {multipliers['scenic']} ELSE 1.0 END)"
-    else:
-        scenic_factor="1.0"
 
-    #combine all factors
-    conditions=f"length * {road_type_factor} * {lit_factor} * {scenic_factor}"
-    return conditions
-
-
-def route_to_geojson(segments: List[dict]) -> dict:
-    #Convert route segments to GeoJSON format for API response
-    # note -> GeoJSON is format for encoding geographic JSON data (for MapLibre)
-
-    if not segments:
-        return {"type": "FeatureCollection", "features": []}
-    
-    #exact geometries
-    geometries=[]
-    for segment in segments:
-        if segment['geom']:
-            #convert WKB to shapely geometry (hex string to binary bytes)
-            geom=wkb.loads(bytes.fromhex(segment['geom']))
-            geometries.append(geom)
-    
-    #merge into single Linestring
-    merged=linemerge(geometries)
-
-    #calculate total distance
-    total_distance=sum(seg['length'] for seg in segments if seg['length'])
-
-    #count attributes
-    lit_count=sum(1 for seg in segments if seg.get('lit', False))  
-    scenic_count=sum(1 for seg in segments if seg.get('scenic_score',0) > 7)
-
-    #build GeoJSON response
-    feature={
-        "type": "Feature",
-        "geometry": mapping(merged),
-        "properties": {
-            "distance_m":round(total_distance,1),
-            "distance_km":round(total_distance/1000,2),
-            "segment_count":len(segments),
-            "lit_segments":lit_count,
-            "scenic_segments":scenic_count,
-            "segments": [
-                {
-                    "seq": seg['seq'],
-                    "type": seg['type'],
-                    "name": seg['name'],
-                    "length_m": round(seg['length'],1) if seg['length'] else 0,
-                    "lit": seg['lit'],
-                    "scenic_score": seg['scenic_score']
-                }
-                for seg in segments
-            ]
-        }
-    }
-
-    return {
-        "type": "FeatureCollection",
-        "features": [feature]
-    }
+def get_routing_service() -> RoutingService:
+    return RoutingService()

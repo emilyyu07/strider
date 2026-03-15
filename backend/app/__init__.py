@@ -1,0 +1,1 @@
+"""Strider backend application package."""

@@ -1,200 +1,104 @@
-"""
-LLM service for semantic routing
-- converts user's natrual language prompts into structured routing preferences
-- uses LLama-3 via Ollama and the Instructor Library
-"""
+import json
+import os
+import re
+from typing import List
 
-import instructor, os
 from openai import OpenAI
 
+from ..models.contracts import LLMRouteParameters
 
-from ..models.llm import RoutingPreferences
+_llm_service = None
 
-#singleton LLM service instance
-_llm_service=None
 
 class LLMService:
-    """
-    Interacts with local LLM (Llama-3 via Ollama) 
-    -> takes natrual language prompt, sends to Llama-3 with structured output instructions, returns validated RoutingPreferences object
-    """
-
     def __init__(
-            self,
-            base_url: str = "http://localhost:11434/v1",
-            model: str="qwen2.5:1.5b",
-            timeout: int=30  
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: int = 30,
     ):
-        """
-        Initializes LLM service
-        Args:
-            base_url: Ollama API endpoint
-            model: model name
-            timeout: request timeout in seconds
-        """
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        self.model = model or os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+        self.timeout = timeout
+        self.client = OpenAI(base_url=self.base_url, api_key="ollama", timeout=timeout)
 
-        self.model=model
-        self.timeout=timeout
-
-        #create OpenAI client for Ollama
-        base_client = OpenAI(
-            base_url=base_url,
-            api_key="ollama",
-            timeout=timeout
-        )
-
-        #wrap with instructor for structured outputs
-        self.client = instructor.patch(base_client, mode=instructor.Mode.JSON)
-
-    def analyze_prompt(
-            self,
-            prompt:str,
-            context: dict | None = None
-    ) -> RoutingPreferences:
-       """
-       Analyzes a routing prompt and extract preferences
-
-       Args: 
-       - prompt: user's natural language routing request
-       - context: optional additional context (current time, user/historical preferences)
-
-       Returns:
-         - RoutingPreferences object with structured preferences
-
-        Raises:
-        - Exception if LLM request fails/response invalid
-       """
-
-       #build prompt
-       system_prompt=self._build_system_prompt()
-       user_message=self._build_user_message(prompt,context)
-
-       try:
-           #call llm with structured output 
-            response = self.client.chat.completions.create(
+    def parse_prompt(self, prompt: str, *, start_lat: float, start_lng: float) -> LLMRouteParameters:
+        fallback = self._fallback(prompt=prompt, start_lat=start_lat, start_lng=start_lng)
+        try:
+            completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract route parameters as JSON with keys: distance_m (int), "
+                            "preferences (string array), start_lat (float), start_lng (float). "
+                            "Return JSON only."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Prompt: {prompt}\n"
+                            f"Current location lat/lng: {start_lat}, {start_lng}\n"
+                            "If distance is omitted, use 5000."
+                        ),
+                    },
                 ],
-                response_model=RoutingPreferences,
-                max_retries=2
             )
-            return response
-       
-       except Exception as e:
-          #log error, return default preferences
-          print(f"LLM error: {e}")
-          return self._get_fallback_preferences(prompt)
-       
-    def _build_system_prompt(self) -> str:
-       """
-       Builds system prompt to instruct LLM on expected output format and reasoning process
-       """
-       return """You are a routing preference analyzer for an intelligent running route building application.
+            content = completion.choices[0].message.content or ""
+            data = json.loads(content)
+            return LLMRouteParameters.model_validate(data)
+        except Exception:
+            return fallback
 
-            Your job is to analyze a user's natural language description of their desired run and extract routing preferences as cost multipliers.
-
-            COST MULTIPLIERS EXPLAINED:
-            - 1.0 = neutral (no preference)
-            - Values > 1.0 = AVOID (higher = stronger avoidance)
-            Examples: 2.0 (slight avoid), 10.0 (moderate avoid), 50.0 (strong avoid), 100.0 (very strong avoid)
-            - Values < 1.0 = PREFER (lower = stronger preference)
-            Examples: 0.8 (slight prefer), 0.5 (moderate prefer), 0.3 (strong prefer)
-
-            ROAD TYPES:
-            - motorway, trunk: Highways (usually avoid for running)
-            - primary, secondary: Main roads (moderate traffic)
-            - residential: Neighborhood streets (good for running)
-            - path, footway: Trails and sidewalks (great for running)
-            - cycleway: Bike paths (good for running)
-
-            ATTRIBUTES:
-            - scenic: Routes with high scenic value (parks, waterfronts, etc.)
-            - unlit: Streets without lighting (avoid at night)
-
-            GUIDELINES:
-            1. "avoid highways/busy roads" → highway: 100.0, primary: 20.0
-            2. "scenic/beautiful route" → scenic: 0.3
-            3. "night run" → unlit: 10.0
-            4. "quiet/peaceful" → residential: 0.7, primary: 10.0
-            5. "trails/nature" → path: 0.3, footway: 0.4
-            6. "well-lit" → unlit: 50.0
-            7. If no strong preferences mentioned, return minimal multipliers
-
-            Be conservative with multipliers - only add them if clearly implied by the prompt."""
-    
-    def _build_user_message(self, prompt: str, context: dict | None) -> str:
-       """
-       Builds user message for LLM, combining prompt and context
-       Args:
-       - prompt: user's natural language routing request
-       - context: additional context (time, location, etc.)
-       """
-
-       message = f"Analyze this routing request:\n\n\"{prompt}\""
-
-       if context:
-        message += "\n\nAdditional context:"
-        for key,value in context.items():
-            message+=f"\n- {key}: {value}"
-
-       return message
-       
-    def _get_fallback_preferences(self, prompt:str) -> RoutingPreferences:
-        """
-        Returns safe default preferences if llm fails
-        Args:
-        - prompt: original user prompt
-        Returns:
-        - RoutingPreferences with minimal multipliers (mostly neutral, slight highway avoidance)
-        """
-        prefs={}
-        reasoning_parts=[]
-        prompt_lower=prompt.lower()
-
-       #highway avoidance  
-        if any(word in prompt_lower for word in ["highway", "busy", "traffic", "major road"]):
-            prefs["highway"]=50.0
-            prefs["primary"]=20.0
-            reasoning_parts.append("Avoiding major roads")
-
-        #scenic preference
-        if any(word in prompt_lower for word in ["scenic", "beautiful", "nature", "park", "waterfront"]):
-            prefs["scenic"]=0.5
-            reasoning_parts.append("Preferring scenic routes")
-
-        #night safety 
-        if any(word in prompt_lower for word in ["night", "dark", "evening"]):
-            prefs["unlit"]=10.0
-            reasoning_parts.append("Avoiding unlit roads at night")
-
-        #trail preference
-        if any(word in prompt_lower for word in ["trail", "path", "nature"]):
-            prefs["path"]=0.4
-            prefs["footway"]=0.5
-            reasoning_parts.append("Preferring trails and sidewalks")
-          
-        
-        if reasoning_parts:
-            reasoning = "LLM Unavailable. Using fallback keyword matching to infer preferences: " + "; ".join(reasoning_parts)
-        else:
-            reasoning = "LLM Unavailable. Using default routing."
-
-        return RoutingPreferences(
-            preferences=prefs,
-            reasoning=reasoning,
-            time_of_day=None,
-            distance_preference=None
+    def _fallback(self, *, prompt: str, start_lat: float, start_lng: float) -> LLMRouteParameters:
+        distance_m = self._extract_distance_m(prompt) or 5000
+        preferences = self._extract_preferences(prompt)
+        return LLMRouteParameters(
+            distance_m=distance_m,
+            preferences=preferences,
+            start_lat=start_lat,
+            start_lng=start_lng,
         )
 
-def get_llm_service() -> 'LLMService':
-    """
-    Get/create global llm service instance (singleton pattern, ensurs only one llm client is created for entire app)
+    @staticmethod
+    def _extract_distance_m(prompt: str) -> int | None:
+        text = prompt.lower()
+        km = re.search(r"(\d+(?:\.\d+)?)\s*km\b", text)
+        if km:
+            return int(float(km.group(1)) * 1000)
+        miles = re.search(r"(\d+(?:\.\d+)?)\s*(mile|miles|mi)\b", text)
+        if miles:
+            return int(float(miles.group(1)) * 1609.34)
+        metres = re.search(r"(\d+)\s*(m|meter|meters|metre|metres)\b", text)
+        if metres:
+            return int(metres.group(1))
+        return None
 
-    Returns:
-    - LLMService instance
-    """
+    @staticmethod
+    def _extract_preferences(prompt: str) -> List[str]:
+        tags: List[str] = []
+        lower = prompt.lower()
+        keywords = {
+            "quiet": "quiet",
+            "shaded": "shaded",
+            "shade": "shaded",
+            "hilly": "hilly",
+            "hill": "hilly",
+            "elevation": "hilly",
+            "scenic": "scenic",
+            "trail": "trails",
+            "safe": "safe",
+            "lit": "well_lit",
+        }
+        for keyword, tag in keywords.items():
+            if keyword in lower and tag not in tags:
+                tags.append(tag)
+        return tags
+
+
+def get_llm_service() -> "LLMService":
     global _llm_service
     if _llm_service is None:
         _llm_service = LLMService()
