@@ -1,4 +1,4 @@
-.coach-panel {
+.cp-root {
   border-top: 1px solid #111111;
   padding: 10px 16px;
   display: flex;
@@ -6,12 +6,13 @@
   align-items: flex-start;
   background: #020202;
   flex-shrink: 0;
-  min-height: 56px;
-  max-height: 72px;
+  min-height: 68px;
+  max-height: 68px;
+  height: 68px;
   overflow: hidden;
 }
 
-.coach-icon {
+.cp-icon {
   width: 24px;
   height: 24px;
   border: 1px solid var(--color-coach);
@@ -22,25 +23,25 @@
   margin-top: 1px;
 }
 
-.coach-dot {
+.cp-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--color-coach);
 }
 
-.coach-text {
-  font-size: 8px;
+.cp-text {
+  font-size: 9px;
   letter-spacing: 0.8px;
-  line-height: 1.55;
-  color: #5a7a9a;
+  line-height: 1.6;
+  color: var(--color-mist);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
-.coach-text em {
+.cp-text em {
   color: var(--color-coach);
   font-style: normal;
 }

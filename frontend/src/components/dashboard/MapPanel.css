@@ -8,6 +8,21 @@
 .map-live {
   position: absolute;
   inset: 0;
+  background: #020202;
+}
+
+.map-fallback-label {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--color-caution);
+  border: 1px solid var(--color-caution);
+  padding: 4px 6px;
+  background: rgba(2, 2, 2, 0.8);
+  pointer-events: none;
 }
 
 .dot-grid {

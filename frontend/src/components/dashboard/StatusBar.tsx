@@ -9,7 +9,7 @@ interface StatusBarProps {
 }
 
 function Dot({ color, on }: { color: string; on: boolean }) {
-  return <div className="status-dot-mini" style={{ background: color, opacity: on ? 1 : 0.3 }} />
+  return <div className="sb-dot" style={{ background: color, opacity: on ? 1 : 0.3 }} />
 }
 
 export default function StatusBar({
@@ -20,14 +20,14 @@ export default function StatusBar({
   cityLabel,
 }: StatusBarProps) {
   return (
-    <div className="status-bar">
-      <div className="status-left">
-        <div className="status-item"><Dot color="#38bdf8" on={gpsLocked} />GPS LOCKED</div>
-        <div className="status-item"><Dot color="#10b981" on={routeReady} />ROUTE READY</div>
-        <div className="status-item"><Dot color="#8b5cf6" on={coachActive} />COACH ACTIVE</div>
-        <div className="status-item"><Dot color="#f59e0b" on={weatherLive} />WEATHER LIVE</div>
+    <div className="sb-root">
+      <div className="sb-left">
+        <div className="sb-item"><Dot color="#38bdf8" on={gpsLocked} />GPS LOCKED</div>
+        <div className="sb-item"><Dot color="#10b981" on={routeReady} />ROUTE READY</div>
+        <div className="sb-item"><Dot color="#8b5cf6" on={coachActive} />COACH ACTIVE</div>
+        <div className="sb-item"><Dot color="#f59e0b" on={weatherLive} />WEATHER LIVE</div>
       </div>
-      <div className="status-item sys-label">{`SYS · STRIDER v0.1 · ${cityLabel}`}</div>
+      <div className="sb-item sb-sys">{`SYS · STRIDER v0.1 · ${cityLabel}`}</div>
     </div>
   )
 }

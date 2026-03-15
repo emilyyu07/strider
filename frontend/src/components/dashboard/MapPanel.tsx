@@ -5,6 +5,22 @@ import { toMapLibreLineCoordinates } from '../../utils/coordinates'
 import './MapPanel.css'
 
 const DEFAULT_CENTER: [number, number] = [-80.5204, 43.4643]
+const FALLBACK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    dark: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors © CARTO',
+    },
+  },
+  layers: [{ id: 'dark', type: 'raster', source: 'dark' }],
+}
 
 interface MapPanelProps {
   locationName: string
@@ -22,7 +38,9 @@ function toPath(points: [number, number][]): string {
 export default function MapPanel({ locationName, currentLocation, route }: MapPanelProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const mapReadyRef = useRef(false)
   const [mapReady, setMapReady] = useState(false)
+  const [mapFailed, setMapFailed] = useState(false)
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 })
   const [routePixels, setRoutePixels] = useState<[number, number][]>([])
 
@@ -30,14 +48,17 @@ export default function MapPanel({ locationName, currentLocation, route }: MapPa
     if (!mapContainerRef.current || mapRef.current) {
       return
     }
-    mapRef.current = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: DEFAULT_CENTER,
       zoom: 12.8,
     })
-    mapRef.current.on('load', () => {
+    mapRef.current = map
+    map.on('load', () => {
+      mapReadyRef.current = true
       setMapReady(true)
+      setMapFailed(false)
       if (mapContainerRef.current) {
         setMapSize({
           width: mapContainerRef.current.clientWidth,
@@ -45,10 +66,26 @@ export default function MapPanel({ locationName, currentLocation, route }: MapPa
         })
       }
     })
-    mapRef.current.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+
+    const fallbackTimer = setTimeout(() => {
+      if (!mapReadyRef.current) {
+        setMapFailed(true)
+        map.setStyle(FALLBACK_STYLE)
+      }
+    }, 3500)
+
+    map.on('error', () => {
+      if (!mapReadyRef.current) {
+        setMapFailed(true)
+        map.setStyle(FALLBACK_STYLE)
+      }
+    })
 
     return () => {
-      mapRef.current?.remove()
+      clearTimeout(fallbackTimer)
+      mapReadyRef.current = false
+      map.remove()
       mapRef.current = null
     }
   }, [])
@@ -108,6 +145,7 @@ export default function MapPanel({ locationName, currentLocation, route }: MapPa
   return (
     <div className="map-area">
       <div className="map-live" ref={mapContainerRef} />
+      {mapFailed && !mapReady && <div className="map-fallback-label">MAP LINK DEGRADED · FALLBACK ACTIVE</div>}
       <div className="dot-grid" />
       <div className="scan" />
 
