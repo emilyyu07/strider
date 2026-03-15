@@ -8,8 +8,9 @@ def test_prompt_fallback_extracts_distance_and_preferences():
         start_lat=43.5448,
         start_lng=-80.2482,
     )
-    assert parsed.distance_m == 5000
-    assert "quiet" in parsed.preferences
-    assert "hilly" in parsed.preferences
-    assert parsed.start_lat == 43.5448
-    assert parsed.start_lng == -80.2482
+    assert parsed.parameters.distance_m == 5000
+    assert "quiet" in parsed.parameters.preferences
+    assert "hilly" in parsed.parameters.preferences
+    assert parsed.parameters.start_lat == 43.5448
+    assert parsed.parameters.start_lng == -80.2482
+    assert parsed.coach_message

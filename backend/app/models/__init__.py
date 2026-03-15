@@ -1,6 +1,7 @@
 from .contracts import (
     Coordinates,
     GenerateRouteRequest,
+    LLMRoutePlan,
     LLMRouteParameters,
     RegenerateRouteRequest,
     RouteResponse,
@@ -9,6 +10,7 @@ from .contracts import (
 __all__ = [
     "Coordinates",
     "GenerateRouteRequest",
+    "LLMRoutePlan",
     "LLMRouteParameters",
     "RegenerateRouteRequest",
     "RouteResponse",

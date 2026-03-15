@@ -9,7 +9,8 @@ def test_stub_route_is_loop():
         target_distance_m=5000,
         preferences=["quiet"],
     )
-    assert len(result.route) >= 5
-    assert result.route[0] == result.route[-1]
+    assert len(result.route_polyline) >= 5
+    assert result.route_polyline[0] == result.route_polyline[-1]
     assert result.distance_m > 0
     assert result.duration_estimate_s > 0
+    assert result.coach_message
