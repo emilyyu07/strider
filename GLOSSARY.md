@@ -119,7 +119,7 @@ Returns: Sequence of nodes representing the shortest path
 }
 ```
 
-**In Strider**: Routes are returned as GeoJSON from backend → displayed on map
+**In Strider**: Route geometry is generated in PostGIS, normalized to `[lat, lng]` pairs in the API, then rendered as GeoJSON layers on the map
 
 ---
 
@@ -128,7 +128,7 @@ Returns: Sequence of nodes representing the shortest path
 
 **Why it matters**: Very efficient for storage, but not human-readable
 
-**In Strider**: PostGIS stores as WKB → We convert to GeoJSON for frontend
+**In Strider**: PostGIS stores as WKB → backend uses GeoJSON as an internal interchange format before returning route coordinates
 
 ---
 

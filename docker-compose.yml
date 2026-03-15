@@ -53,6 +53,28 @@ services:
       - strider-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  graph-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: strider-graph-init
+    profiles: ["manual"]
+    environment:
+      DATABASE_URL: postgresql://strider_user:strider_password@postgres:5432/strider
+      OVERPASS_URL: https://overpass-api.de/api/interpreter
+      OVERPASS_CENTER_LAT: 43.5448
+      OVERPASS_CENTER_LNG: -80.2482
+      OVERPASS_RADIUS_M: 6000
+      ROUTING_MIN_COMPONENT_NODES: 200
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - strider-network
+    command: python scripts/ingest_pipeline.py
+
 volumes:
   postgres_data:
     driver: local
