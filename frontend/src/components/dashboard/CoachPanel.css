@@ -1,0 +1,47 @@
+.coach-panel {
+  border-top: 1px solid #111111;
+  padding: 10px 16px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #020202;
+  flex-shrink: 0;
+  min-height: 56px;
+  max-height: 72px;
+  overflow: hidden;
+}
+
+.coach-icon {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-coach);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.coach-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-coach);
+}
+
+.coach-text {
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  line-height: 1.55;
+  color: #5a7a9a;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.coach-text em {
+  color: var(--color-coach);
+  font-style: normal;
+}
+

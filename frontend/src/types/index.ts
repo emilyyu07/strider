@@ -12,6 +12,8 @@ export interface LLMRouteParameters {
 
 export interface GenerateRouteRequest {
   prompt: string
+  distance_m: number
+  preferences: string[]
   current_location: Coordinates
 }
 
@@ -21,9 +23,10 @@ export interface RegenerateRouteRequest {
 }
 
 export interface RouteResponse {
-  route: [number, number][]
+  route_polyline: [number, number][]
   distance_m: number
+  preferences: string[]
   duration_estimate_s: number
-  description: string
+  coach_message: string
   parameters: LLMRouteParameters
 }

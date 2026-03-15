@@ -1,0 +1,114 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 20px;
+  border-bottom: 1px solid #111111;
+  height: 52px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #ffffff;
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-signal);
+  margin-left: 10px;
+  border-radius: 50%;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.nav-link {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--color-mist);
+  cursor: default;
+}
+
+.nav-link.active {
+  color: #c8d8e8;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.nav-weather-quick {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nwq-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-slate);
+}
+
+.nwq-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.nwq-label {
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: var(--color-mist);
+  margin-bottom: 1px;
+}
+
+.nwq-val {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--color-mist);
+}
+
+.nwq-val.bright {
+  color: var(--color-polar);
+}
+
+.nwq-val.good {
+  color: var(--color-go);
+}
+
+.clock {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--color-signal);
+}
+
+.wind-arrow {
+  display: inline-block;
+  transform: rotate(315deg);
+  margin-right: 2px;
+}
+

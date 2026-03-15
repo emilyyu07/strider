@@ -1,0 +1,159 @@
+.map-area {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.map-live {
+  position: absolute;
+  inset: 0;
+}
+
+.dot-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #1a2a3a 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 20, 40, 0.15) 3px,
+    rgba(0, 20, 40, 0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.route-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.route-ghost {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 1.5;
+  opacity: 0.25;
+}
+
+.route-main {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.route-start-outer {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 0.8;
+  opacity: 0.3;
+}
+
+.route-start-ring {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 1.5;
+}
+
+.route-start-dot {
+  fill: var(--color-signal);
+}
+
+.waypoint-outer {
+  fill: #000000;
+  stroke: var(--color-pulse);
+  stroke-width: 1.5;
+}
+
+.waypoint-inner {
+  fill: var(--color-pulse);
+}
+
+.waypoint-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  fill: var(--color-signal);
+  letter-spacing: 1px;
+}
+
+.corner-path {
+  stroke: #1e3a52;
+  stroke-width: 1;
+  fill: none;
+}
+
+.hud {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.hud-tl {
+  top: 14px;
+  left: 14px;
+}
+
+.hud-br {
+  bottom: 14px;
+  right: 14px;
+  text-align: right;
+}
+
+.hud-bl {
+  bottom: 14px;
+  left: 14px;
+}
+
+.hud-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--color-mist);
+  margin-bottom: 3px;
+}
+
+.hud-value {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #3a6a8a;
+}
+
+.hud-value.bright {
+  color: #c8d8e8;
+}
+
+.hud-coords {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--color-signal);
+  margin-top: 2px;
+}
+
+.est-label {
+  margin-top: 7px;
+}
+
+.maplibregl-ctrl-group {
+  border: 1px solid var(--color-slate);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.maplibregl-ctrl-group button {
+  border-radius: 0;
+}
+
