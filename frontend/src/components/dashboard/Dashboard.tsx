@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
 import type { Coordinates, LLMRouteParameters, RouteResponse } from '../../types'
-import { generateRoute, regenerateRoute } from '../../services/api'
+import { checkCoverage, generateRoute, regenerateRoute } from '../../services/api'
 import CoachPanel from './CoachPanel'
 import MapPanel from './MapPanel'
 import RoutePanel from './RoutePanel'
@@ -178,6 +178,8 @@ export default function Dashboard() {
   const [route, setRoute] = useState<RouteResponse | null>(null)
   const [lastParams, setLastParams] = useState<LLMRouteParameters | null>(null)
   const [coachMessage, setCoachMessage] = useState('AWAITING WEATHER BRIEF...')
+  const [inCoverage, setInCoverage] = useState(true)
+  const [coverageInfo, setCoverageInfo] = useState<{ center: { lat: number; lng: number }; radiusM: number } | null>(null)
   const advisoryLoadedRef = useRef(false)
 
   useEffect(() => {
@@ -217,6 +219,29 @@ export default function Dashboard() {
       }
     }
     void loadLocation()
+    return () => {
+      active = false
+    }
+  }, [location.lat, location.lng])
+
+  useEffect(() => {
+    let active = true
+    const performCoverageCheck = async () => {
+      try {
+        const result = await checkCoverage(location.lat, location.lng)
+        if (active) {
+          setInCoverage(result.in_coverage)
+          setCoverageInfo({
+            center: { lat: result.coverage_center_lat, lng: result.coverage_center_lng },
+            radiusM: result.coverage_radius_m,
+          })
+        }
+      } catch {
+        // If coverage check fails, assume in coverage to not block functionality
+        if (active) setInCoverage(true)
+      }
+    }
+    void performCoverageCheck()
     return () => {
       active = false
     }
@@ -398,6 +423,7 @@ export default function Dashboard() {
           paceIndex={paceIndex}
           loading={loading}
           hasRoute={Boolean(route)}
+          inCoverage={inCoverage}
           onPromptChange={setPrompt}
           onDistanceChange={setDistanceM}
           onPaceChange={setPaceIndex}
@@ -407,7 +433,13 @@ export default function Dashboard() {
           onRegenerate={handleRegenerateRoute}
         />
         <div className="right">
-          <MapPanel locationName={locationName} currentLocation={location} route={route} />
+          <MapPanel 
+            locationName={locationName} 
+            currentLocation={location} 
+            route={route}
+            coverageCenter={coverageInfo?.center}
+            coverageRadiusM={coverageInfo?.radiusM}
+          />
           <CoachPanel message={coachMessage} />
           <StatusBar
             gpsLocked={gpsLocked}

@@ -26,6 +26,8 @@ interface MapPanelProps {
   locationName: string
   currentLocation: Coordinates
   route: RouteResponse | null
+  coverageCenter?: { lat: number; lng: number }
+  coverageRadiusM?: number
 }
 
 function toPath(points: [number, number][]): string {
@@ -35,7 +37,7 @@ function toPath(points: [number, number][]): string {
   return points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
 }
 
-export default function MapPanel({ locationName, currentLocation, route }: MapPanelProps) {
+export default function MapPanel({ locationName, currentLocation, route, coverageCenter, coverageRadiusM }: MapPanelProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapReadyRef = useRef(false)
@@ -133,6 +135,62 @@ export default function MapPanel({ locationName, currentLocation, route }: MapPa
       map.off('resize', syncRoutePixels)
     }
   }, [mapReady, route])
+
+  useEffect(() => {
+    if (!mapRef.current || !mapReady || !coverageCenter || !coverageRadiusM) {
+      return
+    }
+    const map = mapRef.current
+    
+    // Create a circle using turf or approximate with polygon
+    const createCircle = (center: [number, number], radiusInMeters: number, points = 64) => {
+      const coords = []
+      const distanceX = radiusInMeters / (111_320 * Math.cos((center[1] * Math.PI) / 180))
+      const distanceY = radiusInMeters / 110_574
+
+      for (let i = 0; i < points; i++) {
+        const theta = (i / points) * (2 * Math.PI)
+        const x = distanceX * Math.cos(theta)
+        const y = distanceY * Math.sin(theta)
+        coords.push([center[0] + x, center[1] + y])
+      }
+      coords.push(coords[0]) // close the circle
+      return coords
+    }
+
+    const circleCoords = createCircle([coverageCenter.lng, coverageCenter.lat], coverageRadiusM)
+
+    if (!map.getSource('coverage-area')) {
+      map.addSource('coverage-area', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [circleCoords],
+          },
+          properties: {},
+        },
+      })
+
+      map.addLayer({
+        id: 'coverage-outline',
+        type: 'line',
+        source: 'coverage-area',
+        paint: {
+          'line-color': '#00ff88',
+          'line-width': 1.5,
+          'line-opacity': 0.4,
+          'line-dasharray': [3, 3],
+        },
+      })
+    }
+
+    return () => {
+      if (map.getLayer('coverage-outline')) map.removeLayer('coverage-outline')
+      if (map.getSource('coverage-area')) map.removeSource('coverage-area')
+    }
+  }, [mapReady, coverageCenter, coverageRadiusM])
 
   const routePath = useMemo(() => toPath(routePixels), [routePixels])
   const midpointIndexes = useMemo(() => {

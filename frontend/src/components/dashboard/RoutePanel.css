@@ -290,3 +290,43 @@
   cursor: pointer;
 }
 
+.coverage-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  margin-top: 14px;
+  background: rgba(255, 193, 7, 0.05);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-left: 3px solid #ffc107;
+}
+
+.warning-icon {
+  color: #ffc107;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  flex: 1;
+}
+
+.warning-text strong {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #ffc107;
+  margin-bottom: 6px;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.warning-text p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #c8d8e8;
+  margin: 0;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.5px;
+}
+

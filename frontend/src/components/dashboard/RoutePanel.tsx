@@ -12,6 +12,7 @@ interface RoutePanelProps {
   paceIndex: number
   loading: boolean
   hasRoute: boolean
+  inCoverage: boolean
   onPromptChange: (value: string) => void
   onDistanceChange: (value: number) => void
   onPaceChange: (value: number) => void
@@ -29,6 +30,7 @@ export default function RoutePanel({
   paceIndex,
   loading,
   hasRoute,
+  inCoverage,
   onPromptChange,
   onDistanceChange,
   onPaceChange,
@@ -143,7 +145,17 @@ export default function RoutePanel({
         </div>
       </div>
 
-      <button className="gen-btn" onClick={onGenerate} disabled={loading || !prompt.trim()}>
+      {!inCoverage && (
+        <div className="coverage-warning">
+          <div className="warning-icon">⚠</div>
+          <div className="warning-text">
+            <strong>COVERAGE UNAVAILABLE</strong>
+            <p>Coverage available in Guelph/Kitchener-Waterloo region. Enter address in coverage area.</p>
+          </div>
+        </div>
+      )}
+
+      <button className="gen-btn" onClick={onGenerate} disabled={loading || !prompt.trim() || !inCoverage}>
         <div className="bc tl" />
         <div className="bc tr" />
         <div className="bc bl" />
