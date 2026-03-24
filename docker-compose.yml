@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: strider_password
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init_db.sql
@@ -42,6 +42,9 @@ services:
       DATABASE_URL: postgresql://strider_user:strider_password@postgres:5432/strider
       OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
       OLLAMA_MODEL: llama3.2:3b
+      OVERPASS_CENTER_LAT: 43.4869
+      OVERPASS_CENTER_LNG: -80.4204
+      OVERPASS_RADIUS_M: 21000
     ports:
       - "8000:8000"
     volumes:
@@ -62,10 +65,10 @@ services:
     environment:
       DATABASE_URL: postgresql://strider_user:strider_password@postgres:5432/strider
       OVERPASS_URL: https://overpass-api.de/api/interpreter
-      OVERPASS_CENTER_LAT: 43.5448
-      OVERPASS_CENTER_LNG: -80.2482
-      OVERPASS_RADIUS_M: 6000
-      ROUTING_MIN_COMPONENT_NODES: 200
+      OVERPASS_CENTER_LAT: 43.4869
+      OVERPASS_CENTER_LNG: -80.4204
+      OVERPASS_RADIUS_M: 21000
+      ROUTING_MIN_COMPONENT_NODES: 100
     volumes:
       - ./backend:/app
     depends_on:

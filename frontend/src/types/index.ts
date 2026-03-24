@@ -30,3 +30,11 @@ export interface RouteResponse {
   coach_message: string
   parameters: LLMRouteParameters
 }
+
+export interface CoverageCheckResponse {
+  in_coverage: boolean
+  coverage_center_lat: number
+  coverage_center_lng: number
+  coverage_radius_m: number
+  distance_from_center_m?: number
+}

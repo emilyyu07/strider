@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.contracts import (
+    CoverageCheckRequest,
+    CoverageCheckResponse,
     GenerateRouteRequest,
     RegenerateRouteRequest,
     RouteResponse,
@@ -78,3 +80,36 @@ async def regenerate_route(request: RegenerateRouteRequest) -> RouteResponse:
 async def coach_advisory(request: WeatherAdvisoryRequest) -> WeatherAdvisoryResponse:
     llm_service = get_llm_service()
     return WeatherAdvisoryResponse(message=llm_service.generate_weather_advisory(request.weather_summary))
+
+
+@app.post("/api/coverage/check", response_model=CoverageCheckResponse)
+async def check_coverage(request: CoverageCheckRequest) -> CoverageCheckResponse:
+    import math
+    import os
+    
+    # Get coverage parameters from environment
+    center_lat = float(os.getenv("OVERPASS_CENTER_LAT", "43.5448"))
+    center_lng = float(os.getenv("OVERPASS_CENTER_LNG", "-80.2482"))
+    radius_m = int(os.getenv("OVERPASS_RADIUS_M", "10000"))
+    
+    # Calculate distance using Haversine formula
+    def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        earth_radius_m = 6_371_000
+        d_lat = math.radians(lat2 - lat1)
+        d_lng = math.radians(lng2 - lng1)
+        a = (
+            math.sin(d_lat / 2) ** 2
+            + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lng / 2) ** 2
+        )
+        return 2 * earth_radius_m * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    distance = haversine_m(center_lat, center_lng, request.lat, request.lng)
+    in_coverage = distance <= radius_m
+    
+    return CoverageCheckResponse(
+        in_coverage=in_coverage,
+        coverage_center_lat=center_lat,
+        coverage_center_lng=center_lng,
+        coverage_radius_m=radius_m,
+        distance_from_center_m=distance,
+    )

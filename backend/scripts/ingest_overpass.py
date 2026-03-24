@@ -12,7 +12,7 @@ from psycopg2.extras import execute_values
 DEFAULT_CENTER_LAT = 43.5448
 DEFAULT_CENTER_LNG = -80.2482
 DEFAULT_RADIUS_M = 6000
-DEFAULT_TIMEOUT_S = 90
+DEFAULT_TIMEOUT_S = 300  # Increased from 90 to 300 seconds (5 minutes)
 DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
 
@@ -136,7 +136,7 @@ def _insert_nodes(cur: Any, nodes_by_osm_id: dict[int, tuple[float, float]]) -> 
         (lng, lat, osm_id)
         for osm_id, (lat, lng) in nodes_by_osm_id.items()
     ]
-    execute_values(
+    inserted = execute_values(
         cur,
         """
         INSERT INTO routing.nodes (geom, osm_id)
@@ -146,8 +146,8 @@ def _insert_nodes(cur: Any, nodes_by_osm_id: dict[int, tuple[float, float]]) -> 
         node_rows,
         template="(ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)",
         page_size=1000,
+        fetch=True,
     )
-    inserted = cur.fetchall()
     return {int(osm_id): int(node_id) for node_id, osm_id in inserted}
 
 

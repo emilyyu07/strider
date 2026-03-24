@@ -45,6 +45,19 @@ class WeatherAdvisoryResponse(BaseModel):
     message: Annotated[str, Field(min_length=1)]
 
 
+class CoverageCheckRequest(BaseModel):
+    lat: Annotated[float, Field(ge=-90, le=90)]
+    lng: Annotated[float, Field(ge=-180, le=180)]
+
+
+class CoverageCheckResponse(BaseModel):
+    in_coverage: bool
+    coverage_center_lat: float
+    coverage_center_lng: float
+    coverage_radius_m: int
+    distance_from_center_m: float | None = None
+
+
 class RouteResponse(BaseModel):
     route_polyline: List[tuple[float, float]] = Field(
         description="Route polyline represented as [lat, lng] coordinate pairs."
