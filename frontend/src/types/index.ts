@@ -12,8 +12,9 @@ export interface LLMRouteParameters {
 
 export interface GenerateRouteRequest {
   prompt: string
-  distance_m: number
-  preferences: string[]
+  distance_m?: number
+  preferences?: string[]
+  pace_min_per_km?: number
   current_location: Coordinates
 }
 
