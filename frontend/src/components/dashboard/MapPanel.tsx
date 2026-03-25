@@ -41,10 +41,20 @@ export default function MapPanel({ locationName, currentLocation, route, coverag
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapReadyRef = useRef(false)
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [mapFailed, setMapFailed] = useState(false)
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 })
   const [routePixels, setRoutePixels] = useState<[number, number][]>([])
+
+  const handleRecenterToUser = () => {
+    if (!mapRef.current) return
+    mapRef.current.flyTo({ 
+      center: [currentLocation.lng, currentLocation.lat], 
+      zoom: 14.5, 
+      duration: 800 
+    })
+  }
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -87,6 +97,10 @@ export default function MapPanel({ locationName, currentLocation, route, coverag
     return () => {
       clearTimeout(fallbackTimer)
       mapReadyRef.current = false
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove()
+        userMarkerRef.current = null
+      }
       map.remove()
       mapRef.current = null
     }
@@ -96,6 +110,27 @@ export default function MapPanel({ locationName, currentLocation, route, coverag
     if (!mapRef.current || !mapReady) {
       return
     }
+    
+    // Update or create user location marker
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat([currentLocation.lng, currentLocation.lat])
+    } else {
+      // Create custom marker element
+      const markerEl = document.createElement('div')
+      markerEl.className = 'user-location-marker'
+      markerEl.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#00ff88" opacity="0.2"/>
+          <circle cx="12" cy="12" r="6" fill="#00ff88" opacity="0.4"/>
+          <circle cx="12" cy="12" r="3" fill="#00ff88"/>
+        </svg>
+      `
+      
+      userMarkerRef.current = new maplibregl.Marker({ element: markerEl })
+        .setLngLat([currentLocation.lng, currentLocation.lat])
+        .addTo(mapRef.current)
+    }
+    
     if (!route) {
       mapRef.current.flyTo({ center: [currentLocation.lng, currentLocation.lat], zoom: 13.2, duration: 700 })
     }
@@ -206,6 +241,14 @@ export default function MapPanel({ locationName, currentLocation, route, coverag
       {mapFailed && !mapReady && <div className="map-fallback-label">MAP LINK DEGRADED · FALLBACK ACTIVE</div>}
       <div className="dot-grid" />
       <div className="scan" />
+      
+      {/* Recenter to user location button */}
+      <button className="recenter-btn" onClick={handleRecenterToUser} title="Recenter to current location">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <path d="M12 2 L12 7 M12 17 L12 22 M2 12 L7 12 M17 12 L22 12" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+      </button>
 
       <svg className="route-svg" width={mapSize.width} height={mapSize.height}>
         {routePath && (
