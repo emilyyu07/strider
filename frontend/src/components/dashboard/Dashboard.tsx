@@ -171,9 +171,8 @@ export default function Dashboard() {
   const [weatherLive, setWeatherLive] = useState(false)
   const [gpsLocked, setGpsLocked] = useState(false)
   const [prompt, setPrompt] = useState('')
-  const [distanceM, setDistanceM] = useState(5000)
   const [paceIndex, setPaceIndex] = useState(2)
-  const [selectedTerrain, setSelectedTerrain] = useState<string[]>(['QUIET', 'LOW TRAFFIC'])
+  const [paceMinPerKm, setPaceMinPerKm] = useState(5.5)
   const [loading, setLoading] = useState(false)
   const [route, setRoute] = useState<RouteResponse | null>(null)
   const [lastParams, setLastParams] = useState<LLMRouteParameters | null>(null)
@@ -337,19 +336,14 @@ export default function Dashboard() {
     [now],
   )
 
-  const handleToggleTerrain = (tag: string) => {
-    setSelectedTerrain((prev) => (prev.includes(tag) ? prev.filter((p) => p !== tag) : [...prev, tag]))
-  }
-
   const handleGenerateRoute = async () => {
     if (!prompt.trim()) return
     setLoading(true)
     try {
       const response = await generateRoute({
         prompt: prompt.trim(),
-        distance_m: distanceM,
-        preferences: selectedTerrain.map((s) => s.toLowerCase().replaceAll(' ', '_')),
         current_location: location,
+        pace_min_per_km: paceMinPerKm,
       })
       setRoute(response)
       setLastParams(response.parameters)
@@ -366,7 +360,7 @@ export default function Dashboard() {
   }
 
   const handleRegenerateRoute = async () => {
-      if (!lastParams || loading) return
+    if (!lastParams || loading) return
     setLoading(true)
     try {
       const response = await regenerateRoute({
@@ -417,18 +411,15 @@ export default function Dashboard() {
       <div className="body">
         <RoutePanel
           prompt={prompt}
-          distanceM={distanceM}
           terrainTags={TERRAIN_TAGS}
-          selectedTerrain={selectedTerrain}
           paceIndex={paceIndex}
+          paceMinPerKm={paceMinPerKm}
           loading={loading}
           hasRoute={Boolean(route)}
           inCoverage={inCoverage}
           onPromptChange={setPrompt}
-          onDistanceChange={setDistanceM}
           onPaceChange={setPaceIndex}
-          onToggleTerrain={handleToggleTerrain}
-          onClearTerrain={() => setSelectedTerrain([])}
+          onPaceMinPerKmChange={setPaceMinPerKm}
           onGenerate={handleGenerateRoute}
           onRegenerate={handleRegenerateRoute}
         />
