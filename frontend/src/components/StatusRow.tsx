@@ -1,3 +1,4 @@
+/*Status indicators for GPS lock, route readiness and coach activity */
 interface StatusRowProps {
   gpsLocked: boolean
   routeReady: boolean

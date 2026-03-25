@@ -1,3 +1,4 @@
+/* Runner header/dashboard -> weather, UV, optimal run window, location readout, clock */
 import type { Coordinates } from '../types'
 import type { WeatherPoint } from '../types/dashboard'
 

@@ -1,3 +1,5 @@
+/*Map visualization */
+
 import type { RefObject } from 'react'
 
 interface RouteMapPanelProps {
