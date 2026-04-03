@@ -1,3 +1,5 @@
+# LLM prompt parser
+# Model - qwen2.5-7b
 import json
 import os
 import re

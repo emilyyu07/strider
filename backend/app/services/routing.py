@@ -1,3 +1,5 @@
+# core route generation logic
+import logging
 import math
 from typing import Sequence
 
@@ -9,6 +11,8 @@ from ..database import engine
 from ..models.contracts import LLMRouteParameters, RouteResponse
 from .geojson import parse_linestring_geojson_to_lat_lng
 
+logger = logging.getLogger(__name__)
+
 
 class RoutingService:
     def generate_loop_route(
@@ -19,6 +23,7 @@ class RoutingService:
         target_distance_m: int,
         preferences: Sequence[str],
         coach_message: str | None = None,
+        pace_min_per_km: float | None = None,
     ) -> RouteResponse:
         """
         Generate a loop route anchored at the provided start coordinates using pgRouting.
@@ -32,10 +37,26 @@ class RoutingService:
                     target_distance_m=target_distance_m,
                     preferences=preferences,
                 )
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
+            logger.warning(
+                "Route generation failed, using geometric fallback. "
+                f"Error: {type(e).__name__}: {str(e)}",
+                exc_info=True,
+                extra={
+                    "start_lat": start_lat,
+                    "start_lng": start_lng,
+                    "target_distance_m": target_distance_m,
+                    "preferences": list(preferences),
+                },
+            )
             route, distance_m = self._generate_stub_loop(start_lat, start_lng, target_distance_m)
 
-        duration_estimate_s = int(distance_m / 2.6)
+        # Calculate duration using user's pace or default to 2.6 m/s (~6:25 min/km)
+        if pace_min_per_km is not None:
+            duration_estimate_s = int((distance_m / 1000) * pace_min_per_km * 60)
+        else:
+            duration_estimate_s = int(distance_m / 2.6)
+            
         return RouteResponse(
             route_polyline=route,
             distance_m=distance_m,
@@ -112,6 +133,11 @@ class RoutingService:
             ),
             {"lat": lat, "lng": lng},
         ).scalar_one_or_none()
+        if result is None:
+            logger.error(
+                "No routing nodes found in database. Graph may not be initialized.",
+                extra={"search_lat": lat, "search_lng": lng},
+            )
         return int(result) if result is not None else None
 
     def _select_waypoint_nodes(
@@ -171,6 +197,11 @@ class RoutingService:
             {"start_node": start_node, "end_node": end_node},
         ).first()
         if row is None or row.geojson is None:
+            logger.debug(
+                f"No path found between nodes {start_node} → {end_node}. "
+                "Nodes may be in disconnected graph components.",
+                extra={"start_node": start_node, "end_node": end_node},
+            )
             return [], 0.0
 
         lat_lng = parse_linestring_geojson_to_lat_lng(row.geojson)
@@ -226,4 +257,10 @@ class RoutingService:
 
 
 def get_routing_service() -> RoutingService:
-    return RoutingService()
+    global _routing_service
+    if _routing_service is None:
+        _routing_service = RoutingService()
+    return _routing_service
+
+
+_routing_service: RoutingService | None = None

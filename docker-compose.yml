@@ -42,9 +42,9 @@ services:
       DATABASE_URL: postgresql://strider_user:strider_password@postgres:5432/strider
       OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
       OLLAMA_MODEL: llama3.2:3b
-      OVERPASS_CENTER_LAT: 43.4869
-      OVERPASS_CENTER_LNG: -80.4204
-      OVERPASS_RADIUS_M: 21000
+      OVERPASS_CENTER_LAT: 43.4982
+      OVERPASS_CENTER_LNG: -80.3704
+      OVERPASS_RADIUS_M: 18000
     ports:
       - "8000:8000"
     volumes:
@@ -65,10 +65,10 @@ services:
     environment:
       DATABASE_URL: postgresql://strider_user:strider_password@postgres:5432/strider
       OVERPASS_URL: https://overpass-api.de/api/interpreter
-      OVERPASS_CENTER_LAT: 43.4869
-      OVERPASS_CENTER_LNG: -80.4204
-      OVERPASS_RADIUS_M: 21000
-      ROUTING_MIN_COMPONENT_NODES: 100
+      OVERPASS_CENTER_LAT: 43.4982
+      OVERPASS_CENTER_LNG: -80.3704
+      OVERPASS_RADIUS_M: 18000
+      ROUTING_MIN_COMPONENT_NODES: 200
     volumes:
       - ./backend:/app
     depends_on:

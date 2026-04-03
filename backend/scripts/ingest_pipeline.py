@@ -1,8 +1,9 @@
+#orchestrating script for data ingestion, graph pruning and validation
+
 import argparse
 import os
 
 from dotenv import load_dotenv
-
 from ingest_overpass import ingest_overpass
 from prepare_topology import prepare_topology
 

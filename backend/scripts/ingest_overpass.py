@@ -1,3 +1,5 @@
+#OSM data ingestion script (w/ Overpass API) to populate routing graph tables
+
 import argparse
 import math
 import os
@@ -9,9 +11,9 @@ import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
-DEFAULT_CENTER_LAT = 43.5448
-DEFAULT_CENTER_LNG = -80.2482
-DEFAULT_RADIUS_M = 6000
+DEFAULT_CENTER_LAT = 43.4725
+DEFAULT_CENTER_LNG = -80.5200
+DEFAULT_RADIUS_M = 22000
 DEFAULT_TIMEOUT_S = 300  # Increased from 90 to 300 seconds (5 minutes)
 DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 

@@ -1,3 +1,7 @@
+#FastAPI endpoints
+import logging
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,6 +17,14 @@ from .models.contracts import (
 from .services.llm import get_llm_service
 from .services.routing import get_routing_service
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="Strider API",
     description="Semantic route generation API",
@@ -21,7 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,10 +99,10 @@ async def check_coverage(request: CoverageCheckRequest) -> CoverageCheckResponse
     import math
     import os
     
-    # Get coverage parameters from environment
-    center_lat = float(os.getenv("OVERPASS_CENTER_LAT", "43.5448"))
-    center_lng = float(os.getenv("OVERPASS_CENTER_LNG", "-80.2482"))
-    radius_m = int(os.getenv("OVERPASS_RADIUS_M", "10000"))
+    # Get coverage parameters from environment (should match docker-compose.yml)
+    center_lat = float(os.getenv("OVERPASS_CENTER_LAT", "43.4725"))
+    center_lng = float(os.getenv("OVERPASS_CENTER_LNG", "-80.5200"))
+    radius_m = int(os.getenv("OVERPASS_RADIUS_M", "22000"))
     
     # Calculate distance using Haversine formula
     def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -113,3 +125,56 @@ async def check_coverage(request: CoverageCheckRequest) -> CoverageCheckResponse
         coverage_radius_m=radius_m,
         distance_from_center_m=distance,
     )
+
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint for liveness/readiness probes.
+    
+    Returns:
+        - status: overall service health
+        - database: connectivity and graph data availability
+        - llm: LLM service connectivity
+    """
+    from .database import engine, test_connect
+    from sqlalchemy import text
+    
+    health_status = {
+        "status": "healthy",
+        "database": {"connected": False, "nodes": 0, "edges": 0, "graph_ready": False},
+        "llm": {"configured": False, "base_url": None},
+    }
+    
+    # Check database connectivity
+    try:
+        if test_connect():
+            health_status["database"]["connected"] = True
+            
+            # Check graph data availability
+            with engine.connect() as conn:
+                node_count = conn.execute(text("SELECT COUNT(*) FROM routing.nodes")).scalar()
+                edge_count = conn.execute(text("SELECT COUNT(*) FROM routing.edges")).scalar()
+                health_status["database"]["nodes"] = node_count or 0
+                health_status["database"]["edges"] = edge_count or 0
+                health_status["database"]["graph_ready"] = (node_count or 0) > 0 and (edge_count or 0) > 0
+                
+                if not health_status["database"]["graph_ready"]:
+                    health_status["status"] = "degraded"
+                    logger.warning(
+                        "Graph data not initialized. Run: docker-compose --profile manual up graph-init"
+                    )
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["database"]["error"] = str(e)
+        logger.error(f"Database health check failed: {e}")
+    
+    # Check LLM configuration
+    import os
+    llm_base_url = os.getenv("OLLAMA_BASE_URL")
+    if llm_base_url:
+        health_status["llm"]["configured"] = True
+        health_status["llm"]["base_url"] = llm_base_url
+        health_status["llm"]["model"] = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+    
+    return health_status

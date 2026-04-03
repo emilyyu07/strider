@@ -1,3 +1,4 @@
+#api contracts 
 from typing import Annotated, List
 
 from pydantic import AliasChoices, BaseModel, Field
@@ -28,6 +29,7 @@ class GenerateRouteRequest(BaseModel):
     current_location: Coordinates = Field(validation_alias=AliasChoices("current_location", "location"))
     distance_m: Annotated[int | None, Field(gt=0)] = None
     preferences: List[str] = Field(default_factory=list)
+    pace_min_per_km: Annotated[float | None, Field(gt=0, le=20)] = None
 
 
 class RegenerateRouteRequest(BaseModel):

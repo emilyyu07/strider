@@ -1,5 +1,5 @@
+#convert data to geojson format for frontend mapping
 import json
-
 
 def parse_linestring_geojson_to_lat_lng(geojson: str) -> list[tuple[float, float]]:
     """
