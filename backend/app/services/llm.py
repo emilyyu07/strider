@@ -17,10 +17,10 @@ class LLMService:
         self,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: int = 30,
+        timeout: int = 60,
     ):
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        self.model = model or os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+        self.model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
         self.timeout = timeout
         self.client = OpenAI(base_url=self.base_url, api_key="ollama", timeout=timeout)
 
@@ -36,7 +36,7 @@ class LLMService:
                             "Extract route planning output as JSON with keys: distance_m (int), "
                             "preferences (string array), start_lat (float), start_lng (float), "
                             "coach_message (string). "
-                            "Return JSON only."
+                            "Return ONLY valid JSON, no markdown, no explanation."
                         ),
                     },
                     {
@@ -48,8 +48,18 @@ class LLMService:
                         ),
                     },
                 ],
+                max_tokens=200,
+                temperature=0.3,
             )
             content = completion.choices[0].message.content or ""
+            # Strip markdown code blocks if present
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
+            
             data = json.loads(content)
             return LLMRoutePlan(
                 parameters=LLMRouteParameters.model_validate(

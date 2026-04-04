@@ -102,7 +102,7 @@ async def check_coverage(request: CoverageCheckRequest) -> CoverageCheckResponse
     # Get coverage parameters from environment (should match docker-compose.yml)
     center_lat = float(os.getenv("OVERPASS_CENTER_LAT", "43.4725"))
     center_lng = float(os.getenv("OVERPASS_CENTER_LNG", "-80.5200"))
-    radius_m = int(os.getenv("OVERPASS_RADIUS_M", "22000"))
+    radius_m = int(os.getenv("OVERPASS_RADIUS_M", "25000"))
     
     # Calculate distance using Haversine formula
     def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:

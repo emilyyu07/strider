@@ -213,14 +213,14 @@ class RoutingService:
         if "quiet" in prefs:
             type_multiplier = (
                 "CASE "
-                "WHEN type IN ('motorway','trunk','primary') THEN 6.0 "
-                "WHEN type IN ('secondary','tertiary') THEN 2.0 "
-                "WHEN type IN ('residential','living_street') THEN 0.9 "
+                "WHEN type IN (''motorway'',''trunk'',''primary'') THEN 6.0 "
+                "WHEN type IN (''secondary'',''tertiary'') THEN 2.0 "
+                "WHEN type IN (''residential'',''living_street'') THEN 0.9 "
                 "ELSE 1.0 END"
             )
         elif "trails" in prefs:
             type_multiplier = (
-                "CASE WHEN type IN ('path','footway','track') THEN 0.7 ELSE 1.0 END"
+                "CASE WHEN type IN (''path'',''footway'',''track'') THEN 0.7 ELSE 1.0 END"
             )
 
         scenic_multiplier = "1.0"

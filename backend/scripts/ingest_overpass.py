@@ -13,7 +13,7 @@ from psycopg2.extras import execute_values
 
 DEFAULT_CENTER_LAT = 43.4725
 DEFAULT_CENTER_LNG = -80.5200
-DEFAULT_RADIUS_M = 22000
+DEFAULT_RADIUS_M = 30000
 DEFAULT_TIMEOUT_S = 300  # Increased from 90 to 300 seconds (5 minutes)
 DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
@@ -92,6 +92,17 @@ def _should_include_highway(highway: str) -> bool:
 
 
 def _fetch_overpass_data(*, overpass_url: str, center_lat: float, center_lng: float, radius_m: int) -> dict[str, Any]:
+    """Fetch OSM data from Overpass API. Uses chunked downloads for large radii to avoid timeouts."""
+    # If radius is > 25km, split into chunks to avoid timeout
+    if radius_m > 25000:
+        print(f"Large radius detected ({radius_m}m). Using chunked download with 4 overlapping regions...")
+        return _fetch_overpass_data_chunked(
+            overpass_url=overpass_url,
+            center_lat=center_lat,
+            center_lng=center_lng,
+            radius_m=radius_m
+        )
+    
     query = _build_overpass_query(center_lat=center_lat, center_lng=center_lng, radius_m=radius_m)
     response = httpx.post(
         overpass_url,
@@ -104,6 +115,64 @@ def _fetch_overpass_data(*, overpass_url: str, center_lat: float, center_lng: fl
     if "elements" not in payload:
         raise RuntimeError("Overpass response missing elements")
     return payload
+
+
+def _fetch_overpass_data_chunked(*, overpass_url: str, center_lat: float, center_lng: float, radius_m: int) -> dict[str, Any]:
+    """Fetch data in 4 overlapping quadrants to avoid timeout on large areas."""
+    # Calculate offset for quadrant centers (70% of radius to ensure overlap)
+    offset_km = (radius_m / 1000) * 0.5
+    chunk_radius_m = int(radius_m * 0.6)  # Each chunk covers 60% of total radius with overlap
+    
+    # Approximate degrees (1 degree lat ≈ 111km, lng varies by latitude)
+    lat_offset = offset_km / 111.0
+    lng_offset = offset_km / (111.0 * math.cos(math.radians(center_lat)))
+    
+    # Define 4 quadrant centers: NE, NW, SE, SW
+    quadrants = [
+        (center_lat + lat_offset, center_lng + lng_offset, "NE"),
+        (center_lat + lat_offset, center_lng - lng_offset, "NW"),
+        (center_lat - lat_offset, center_lng + lng_offset, "SE"),
+        (center_lat - lat_offset, center_lng - lng_offset, "SW"),
+    ]
+    
+    all_elements = []
+    seen_ids = set()
+    
+    for i, (lat, lng, direction) in enumerate(quadrants, 1):
+        print(f"  Fetching chunk {i}/4 ({direction}): center=({lat:.4f}, {lng:.4f}), radius={chunk_radius_m}m...")
+        query = _build_overpass_query(center_lat=lat, center_lng=lng, radius_m=chunk_radius_m)
+        
+        try:
+            response = httpx.post(
+                overpass_url,
+                data={"data": query},
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=DEFAULT_TIMEOUT_S,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            
+            if "elements" not in payload:
+                raise RuntimeError(f"Chunk {i} response missing elements")
+            
+            # Deduplicate elements by OSM ID
+            for elem in payload["elements"]:
+                elem_id = (elem.get("type"), elem.get("id"))
+                if elem_id not in seen_ids:
+                    seen_ids.add(elem_id)
+                    all_elements.append(elem)
+            
+            print(f"  ✓ Chunk {i}/4 complete: {len(payload['elements'])} elements ({len(all_elements)} total unique)")
+            
+        except Exception as e:
+            print(f"  ⚠ Chunk {i}/4 failed: {e}")
+            # Continue with other chunks rather than failing completely
+    
+    if not all_elements:
+        raise RuntimeError("No data retrieved from any chunks")
+    
+    print(f"✓ Chunked download complete: {len(all_elements)} total unique elements from {len(quadrants)} chunks")
+    return {"elements": all_elements}
 
 
 def _extract_graph(payload: dict[str, Any]) -> tuple[dict[int, tuple[float, float]], list[dict[str, Any]]]:
