@@ -150,7 +150,10 @@ class RoutingService:
         start_node_id: int,
     ) -> list[int]:
         bearings = (45.0, 165.0, 285.0)
-        radius_m = max(target_distance_m / 4, 200)
+        # Adjust radius to account for road curvature and routing reality
+        # Roads follow curves, intersections, and detours making them longer than straight-line distance
+        # Factor of 0.55 provides best accuracy across 2-10km range
+        radius_m = max(target_distance_m / 4 * 0.55, 200)
         waypoints: list[int] = []
         for bearing in bearings:
             point_lat, point_lng = self._project_point(start_lat, start_lng, bearing, radius_m)

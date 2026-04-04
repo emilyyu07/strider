@@ -33,9 +33,21 @@ class LLMService:
                     {
                         "role": "system",
                         "content": (
-                            "Extract route planning output as JSON with keys: distance_m (int), "
-                            "preferences (string array), start_lat (float), start_lng (float), "
-                            "coach_message (string). "
+                            "You are a running route planner. Extract route parameters as JSON.\n"
+                            "Required keys:\n"
+                            "- distance_m (integer): Distance in METERS. Convert km to meters (1km = 1000m).\n"
+                            "- preferences (string array): Route preferences like 'quiet', 'trails', 'scenic'.\n"
+                            "- start_lat (float): Starting latitude.\n"
+                            "- start_lng (float): Starting longitude.\n"
+                            "- coach_message (string): Motivational message.\n\n"
+                            "Distance conversion examples:\n"
+                            "- '5km' or '5k' → distance_m: 5000 (5 × 1000)\n"
+                            "- '2 kilometer' → distance_m: 2000 (2 × 1000)\n"
+                            "- '10k' → distance_m: 10000 (10 × 1000)\n"
+                            "- '3.5km' → distance_m: 3500 (3.5 × 1000)\n"
+                            "- '3 miles' → distance_m: 4828 (3 × 1609.34)\n"
+                            "- '800m' or '800 meters' → distance_m: 800\n\n"
+                            "IMPORTANT: 'k' means kilometers. 5k = 5km = 5000m, 10k = 10km = 10000m\n\n"
                             "Return ONLY valid JSON, no markdown, no explanation."
                         ),
                     },
@@ -117,7 +129,8 @@ class LLMService:
     @staticmethod
     def _extract_distance_m(prompt: str) -> int | None:
         text = prompt.lower()
-        km = re.search(r"(\d+(?:\.\d+)?)\s*km\b", text)
+        # Match km, k (without trailing letters), or kilometer
+        km = re.search(r"(\d+(?:\.\d+)?)\s*(?:km|k(?![a-z])|kilometers?)\b", text)
         if km:
             return int(float(km.group(1)) * 1000)
         miles = re.search(r"(\d+(?:\.\d+)?)\s*(mile|miles|mi)\b", text)
