@@ -1,4 +1,4 @@
-/*Map visualization */
+/*Map visualization -> UI */
 
 import type { RefObject } from 'react'
 

@@ -179,7 +179,7 @@
 }
 
 .user-location-marker svg {
-  filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.5));
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
 }
 
 /* Recenter button */

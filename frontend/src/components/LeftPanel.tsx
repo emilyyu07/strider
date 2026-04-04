@@ -1,3 +1,4 @@
+/*User prompting/route generating panel */
 const TERRAIN_TAGS = ['QUIET', 'SHADED', 'HILLY', 'FLAT', 'LOW TRAFFIC', 'PARK', 'WATERFRONT', 'SCENIC']
 const DISTANCE_TICKS = [1000, 3000, 5000, 10000, 15000]
 const PACE_TICKS = ['EASY', 'STEADY', 'TEMPO', 'PUSH']

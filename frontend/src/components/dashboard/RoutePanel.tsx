@@ -159,8 +159,8 @@ export default function RoutePanel({
         <div className="coverage-warning">
           <div className="warning-icon">⚠</div>
           <div className="warning-text">
-            <strong>COVERAGE UNAVAILABLE</strong>
-            <p>Coverage available in Guelph/Kitchener-Waterloo region. Enter address in coverage area.</p>
+            <strong>LOCATION RESTRICTION</strong>
+            <p>Coverage only available in Guelph/Kitchener-Waterloo region.</p>
           </div>
         </div>
       )}
