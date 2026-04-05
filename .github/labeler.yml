@@ -1,0 +1,35 @@
+backend/**/*:
+  - backend
+
+frontend/**/*:
+  - frontend
+
+.github/workflows/**/*:
+  - ci/cd
+
+docker-compose.yml:
+  - docker
+
+**/Dockerfile:
+  - docker
+
+**/*.md:
+  - documentation
+
+**/*test*.py:
+  - tests
+
+**/*test*.ts:
+  - tests
+
+**/*test*.tsx:
+  - tests
+
+backend/requirements.txt:
+  - dependencies
+
+frontend/package.json:
+  - dependencies
+
+frontend/package-lock.json:
+  - dependencies
