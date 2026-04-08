@@ -1,16 +1,16 @@
 # Strider
 
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![PostGIS](https://img.shields.io/badge/PostGIS-3.4-4169E1?logo=postgresql&logoColor=white)
-![pgRouting](https://img.shields.io/badge/pgRouting-3.5-4169E1?logo=postgresql&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
-![MapLibre](https://img.shields.io/badge/MapLibre_GL-5.19-396CB2?logo=maplibre&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![PostGIS](https://img.shields.io/badge/PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![pgRouting](https://img.shields.io/badge/pgRouting-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![MapLibre](https://img.shields.io/badge/MapLibre-396CB2?style=for-the-badge&logo=maplibre&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-A running route planner that generates navigable loop routes from natural language input. Strider's core mechanism: user preferences are translated into dynamic SQL cost expressions and injected directly into `pgr_dijkstra`, biasing pathfinding without hardcoded UI filters.
+An intelligent running route planner that generates navigable loop routes from natural language input. Strider's core mechanism: user preferences are translated into dynamic SQL cost expressions and injected directly into `pgr_dijkstra`, biasing pathfinding without hardcoded UI filters.
 
 ## Features
 
