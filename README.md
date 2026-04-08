@@ -33,19 +33,82 @@ An intelligent running route planner that generates navigable loop routes from n
 
 ```mermaid
 flowchart TD
-    A[Browser: User Input] --> B[FastAPI /api/route/generate]
-    B --> C{LLM Available?}
-    C -->|Yes| D[Ollama: Extract distance_m + preferences]
-    C -->|No| E[Regex Fallback: Parse km/miles/etc]
-    D --> F[PostgreSQL: KNN Query for Start Node]
-    E --> F
-    F --> G[Generate SQL Cost Expression]
-    G --> H["pgr_dijkstra (Cost = length × type_mult × scenic_mult × lit_mult)"]
-    H --> I[Return GeoJSON LineString]
-    I --> J[MapLibre: Render SVG Route Overlay]
+    subgraph FE ["Frontend — React + MapLibre GL"]
+        A(["User prompt\n+ location"])
+        B["RoutePanel.tsx\nprompt · terrain tags · pace slider"]
+        WX["WeatherStrip.tsx\ntemp · wind · UV · 8h run window"]
+        MAP["MapPanel.tsx\nMapLibre · SVG route overlay"]
+        COACH["CoachPanel.tsx\nLLM weather advisory"]
+        A --> B
+    end
 
-    style H fill:#e1f5ff
-    style G fill:#fff4e1
+    subgraph COV ["Coverage Gate"]
+        CK["POST /api/coverage/check\nHaversine vs OVERPASS_RADIUS_M"]
+        CK -->|in bounds| RQ
+        CK -.->|out of bounds| BLK["Disable button\n+ warning banner"]
+    end
+
+    B -->|"checks location first"| CK
+
+    subgraph API ["FastAPI — main.py"]
+        RQ["POST /api/route/generate\nprompt · current_location · pace_min_per_km"]
+        RQ --> LLM_CALL["LLMService.parse_prompt()"]
+    end
+
+    subgraph LLM ["LLM Service — llm.py"]
+        LLM_CALL -->|"HTTP — OpenAI-compatible"| OLL["Ollama\nqwen2.5:1.5b"]
+        LLM_CALL -.->|"timeout / exception"| RGX["Regex fallback\n_extract_distance_m()\n_extract_preferences()"]
+        OLL --> PLAN[("LLMRoutePlan\ndistance_m · preferences\nstart_lat · start_lng\ncoach_message")]
+        RGX --> PLAN
+    end
+
+    subgraph ROUTE ["RoutingService — routing.py"]
+        PLAN --> GEN["generate_loop_route()"]
+        GEN --> KNN["_nearest_node_id()\nPostGIS KNN · geom <->"]
+        KNN --> WPS["_select_waypoint_nodes()\n3 bearings: 45° · 165° · 285°\nradius = dist × 0.55 / 4"]
+        WPS --> COST["_cost_expression()\ncompile SQL CASE from preferences"]
+        COST --> LEG["_solve_leg() × 3\nstart→WP1 · WP1→WP2 · WP2→start"]
+    end
+
+    subgraph DB ["PostgreSQL + PostGIS + pgRouting"]
+        KNN <-->|"SELECT id ORDER BY geom <->\nST_MakePoint LIMIT 1"| NODES[("routing.nodes\nosm_id · geom")]
+        LEG -->|"pgr_dijkstra\ncost = length × type_mult\n× scenic_mult × lit_mult"| EDGES[("routing.edges\nsource · target · length\ntype · surface · lit\nscenic_score · safety_score")]
+        EDGES --> GEOM["ST_MakeLine(nodes ORDER BY seq)\n→ GeoJSON LineString"]
+    end
+
+    subgraph PREF ["Cost multipliers applied per preference"]
+        direction LR
+        P1["quiet: highway ×6 · residential ×0.9"]
+        P2["trails: path/footway ×0.7"]
+        P3["scenic: 2.0 − scenic_score/10"]
+        P4["lit/safe: lit ×0.8 · unlit ×1.4"]
+    end
+
+    COST -.->|"builds"| PREF
+
+    subgraph INGEST ["Graph Init — docker compose --profile manual"]
+        OVP["Overpass API\nOSM highway ways"] --> INJ["ingest_overpass.py\nnodes + edges · scenic & safety scoring\nbulk INSERT via execute_values"]
+        INJ --> NODES
+        INJ --> EDGES
+        INJ --> TOP["prepare_topology.py\npgr_connectedComponents\nprune isolated subgraphs < threshold"]
+    end
+
+    GEOM -->|"parse_linestring_geojson\n→ lat/lng pairs"| RESP[("RouteResponse\nroute_polyline · distance_m\nduration_estimate_s\ncoach_message · parameters")]
+
+    GEN -.->|"SQLAlchemyError\nor no path found"| STUB["_generate_stub_loop()\ngeometric square fallback"]
+    STUB --> RESP
+
+    RESP --> MAP
+    RESP -->|"coach_message"| COACH
+
+    subgraph WXS ["Weather — client-side fetch"]
+        OMA["open-meteo.com\ntemp · apparent_temp · wind · UV · precip"]
+        AQI["open-meteo air-quality\nus_aqi"]
+        OMA --> WX
+        AQI --> WX
+        WX -->|"POST /api/coach/advisory\nweather_summary"| ADV["LLMService\ngenerate_weather_advisory()"]
+        ADV --> COACH
+    end
 ```
 
 **Key design decisions:**
