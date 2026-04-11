@@ -339,23 +339,39 @@ export default function Dashboard() {
   const handleGenerateRoute = async () => {
     if (!prompt.trim()) return
     setLoading(true)
+    console.log('[DEBUG] Starting route generation...')
+    console.log('[DEBUG] Prompt:', prompt.trim())
+    console.log('[DEBUG] Location:', location)
+    console.log('[DEBUG] Pace:', paceMinPerKm)
     try {
-      const response = await generateRoute({
+      const requestPayload = {
         prompt: prompt.trim(),
         current_location: location,
         pace_min_per_km: paceMinPerKm,
-      })
+      }
+      console.log('[DEBUG] Request payload:', requestPayload)
+      const response = await generateRoute(requestPayload)
+      console.log('[DEBUG] Response received:', response)
       setRoute(response)
       setLastParams(response.parameters)
       setCoachMessage(normalizeCoachText(response.coach_message, 'Route generated. Stay smooth and controlled.'))
+      console.log('[DEBUG] Route set successfully')
     } catch (error) {
+      console.error('[DEBUG] Error caught:', error)
       if (axios.isAxiosError(error)) {
+        console.error('[DEBUG] Axios error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+        })
         setCoachMessage(error.response?.data?.detail ?? 'Route generation failed.')
       } else {
+        console.error('[DEBUG] Non-axios error:', error)
         setCoachMessage('Route generation failed.')
       }
     } finally {
       setLoading(false)
+      console.log('[DEBUG] Route generation complete')
     }
   }
 

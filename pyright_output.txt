@@ -1,0 +1,6 @@
+c:\dev\strider\backend\scripts\ingest_overpass.py
+  c:\dev\strider\backend\scripts\ingest_overpass.py:8:8 - warning: Import "psycopg2" could not be resolved from source (reportMissingModuleSource)
+  c:\dev\strider\backend\scripts\ingest_overpass.py:10:6 - warning: Import "psycopg2.extras" could not be resolved from source (reportMissingModuleSource)
+  c:\dev\strider\backend\scripts\ingest_overpass.py:263:30 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+  c:\dev\strider\backend\scripts\ingest_overpass.py:265:30 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+2 errors, 2 warnings, 0 informations

@@ -13,17 +13,25 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 30000,
+  timeout: 60000, // Increased to 60 seconds for LLM processing
 });
 
 export const generateRoute = async (
   request: GenerateRouteRequest,
 ): Promise<RouteResponse> => {
-  const response = await apiClient.post<RouteResponse>(
-    "/api/route/generate",
-    request,
-  );
-  return response.data;
+  console.log('[API] Sending generateRoute request:', request);
+  console.log('[API] Using base URL:', API_BASE_URL);
+  try {
+    const response = await apiClient.post<RouteResponse>(
+      "/api/route/generate",
+      request,
+    );
+    console.log('[API] Received response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Request failed:', error);
+    throw error;
+  }
 };
 
 export const regenerateRoute = async (
